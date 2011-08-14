@@ -1,4 +1,7 @@
+from collections import namedtuple
 import functions
+from heap_queue import HeapQueue
+
 
 
 _CHECKED = True
@@ -15,12 +18,38 @@ else:
 
 
 
+_INFINITY = float("inf")
+
+_ItemWithDistances = namedtuple('_ItemWithDistances', 'item, distance, min_distance')
+
+
+
 class _IndexItem(object):
 	
 	def __init__(self, data):
 		self.data = data
 		self.radius = 0                  # Updated when a child is added to this item
 		self.distance_to_parent = None   # Updated when this item is added to a parent
+	
+	def _check(self):
+		self._check_data()
+		self._check_radius()
+		self._check_distance_to_parent()
+	
+	def _check_data(self):
+		assert self.data is not None
+	
+	def _check_radius(self):
+		assert self.radius is not None
+		assert self.radius >= 0
+	
+	def _check_distance_to_parent(self):
+		assert not isinstance(self, (_RootLeafNode, _RootNode)), self
+		assert self.distance_to_parent is not None
+	
+	def _check_distance_to_parent__root(self):
+		assert isinstance(self, (_RootLeafNode, _RootNode)), self
+		assert self.distance_to_parent is None
 
 
 
@@ -29,12 +58,61 @@ class _Node(_IndexItem):
 	def __init__(self, data):
 		super(_Node, self).__init__(data)
 		self.children = []
+	
+	def add_data(self, data, distance, mtree):
+		child = self._add_data(data)
+		self.update_metrics(child, distance)
+		if len(self.children) > mtree.max_node_capacity:
+			raise NotImplementedError()
+	
+	def update_metrics(self, child, distance):
+		child.distance_to_parent = distance
+		self.radius = max(self.radius, distance + child.radius)
+	
+	def _check(self, mtree):
+		super(_Node, self)._check()
+		for child in self.children:
+			self._check_child_class(child)
+			self._check_child_metrics(child, mtree)
+			child._check()
+	
+	def _check_child_class(self, child):
+		expected_class = self._get_expected_child_class()
+		assert isinstance(child, expected_class)
+	
+	@staticmethod
+	def _get_expected_child_class__leaf(self):
+		return _Entry
+	
+	def _check_child_metrics(self, child, mtree):
+		assert child.distance_to_parent == mtree.distance_function(child.data, self.data)
+		assert child.distance_to_parent + child.radius <= self.radius
 
 
 
 class _RootLeafNode(_Node):
+	
+	def _add_data(self, data):
+		entry = _Entry(data)
+		self.children.append(entry)
+		return entry
+
+	_check_distance_to_parent = _Node._check_distance_to_parent__root
+	
+	_get_expected_child_class = _Node._get_expected_child_class__leaf
+
+
+
+class _RootNode(_Node):
 	pass
 
+
+class _InternalNode(_Node):
+	pass
+
+
+class _LeafNode(_Node):
+	pass
 
 
 class _Entry(_IndexItem):
@@ -51,6 +129,9 @@ class MTreeBase(object):
 	
 	See http://en.wikipedia.org/wiki/M-tree
 	"""
+	
+	
+	ResultItem = namedtuple('ResultItem', 'data, distance')
 	
 	
 	def __init__(self,
@@ -99,7 +180,7 @@ class MTreeBase(object):
 		"""
 		if self.root is None:
 			self.root = _RootLeafNode(data)
-			self.root.add_data(data)
+			self.root.add_data(data, 0, self)
 		else:
 			try:
 				self.root.add_data(data)
@@ -108,3 +189,73 @@ class MTreeBase(object):
 				self.root = _RootNode(self.root)
 				for new_node in e.new_nodes:
 					self.root.add_child(new_node)
+	
+	
+	def get_nearest(self, query_data, range=_INFINITY, limit=_INFINITY):
+		"""
+		Returns an iterator on the indexed data nearest to the query_data. The
+		returned items are tuples containing the data and its distance to the
+		query_data, in increasing distance order. The results can be limited by
+		the range (maximum distance from the query_data) and limit arguments.
+		"""
+		if self.root is None:
+			# No indexed data!
+			return
+		
+		distance = self.distance_function(query_data, self.root.data)
+		min_distance = max(distance - self.root.radius, 0)
+		
+		pending_queue = HeapQueue(
+				content=[_ItemWithDistances(item=self.root, distance=distance, min_distance=min_distance)],
+				key=lambda iwd: iwd.min_distance,
+			)
+		
+		nearest_queue = HeapQueue(key=lambda iwd: iwd.distance)
+		
+		yielded_count = 0
+		
+		while pending_queue:
+			pending = pending_queue.pop()
+			
+			node = pending.item
+			assert isinstance(node, _Node)
+			
+			for child in node.children:
+				if abs(pending.distance - child.distance_to_parent) - child.radius <= range:
+					child_distance = self.distance_function(query_data, child.data)
+					if child_distance - child.radius <= range:
+						iwd = _ItemWithDistances(item=child, distance=child_distance, min_distance=child_distance)
+						if isinstance(child, _Entry):
+							nearest_queue.push(iwd)
+						else:
+							pending_queue.push(iwd)
+			
+			# Tries to yield known results so far
+			if pending_queue:
+				next_pending = pending_queue.head()
+				next_pending_min_distance = next_pending.min_distance
+			else:
+				next_pending_min_distance = _INFINITY
+			
+			while nearest_queue:
+				next_nearest = nearest_queue.head()
+				assert isinstance(next_nearest, _ItemWithDistances)
+				if next_nearest.distance <= next_pending_min_distance:
+					_ = nearest_queue.pop()
+					assert _ is next_nearest
+					
+					yield self.ResultItem(data=next_nearest.item.data, distance=next_nearest.distance)
+					yielded_count += 1
+					if yielded_count >= limit:
+						# Limit reached
+						return
+				else:
+					break
+
+	
+	
+	
+	
+	def _check(self):
+		if self.root is not None:
+			self.root._check(self)

@@ -1,3 +1,7 @@
+import math
+
+
+
 def euclidean_distance(data1, data2):
 	"""
 	Calculates the euclidean distance between two data objects representing
