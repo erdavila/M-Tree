@@ -54,7 +54,7 @@ class MTreeBase(object):
 	
 	
 	def __init__(self,
-		         min_node_capacity=50, max_node_capacity=100,
+		         min_node_capacity=50, max_node_capacity=None,
 		         distance_function=functions.euclidean_distance,
 		         split_function=functions.make_split_function(functions.random_promotion, functions.balanced_partition)
 		        ):
@@ -78,6 +78,8 @@ class MTreeBase(object):
 		"""
 		if min_node_capacity < 2:
 			raise ValueError("min_node_capacity must be at least 2")
+		if max_node_capacity is None:
+			max_node_capacity = 2 * min_node_capacity - 1
 		if max_node_capacity <= min_node_capacity:
 			raise ValueError("max_node_capacity must be greater than min_node_capacity")
 		
@@ -93,7 +95,7 @@ class MTreeBase(object):
 		"""
 		Adds and indexes an object.
 		
-		The object must not currently be indexed!
+		The object must not currently already be indexed!
 		"""
 		if self.root is None:
 			self.root = _RootLeafNode(data)
