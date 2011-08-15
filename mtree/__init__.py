@@ -45,6 +45,7 @@ class _IndexItem(object):
 		self.radius = 0                  # Updated when a child is added to this item
 		self.distance_to_parent = None   # Updated when this item is added to a parent
 	
+	'''
 	def _check(self, mtree):
 		self._check_data()
 		self._check_radius()
@@ -65,6 +66,7 @@ class _IndexItem(object):
 	def _check_distance_to_parent__root(self):
 		assert isinstance(self, (_RootLeafNode, _RootNode)), self
 		assert self.distance_to_parent is None
+	'''
 
 
 
@@ -74,6 +76,7 @@ class _Node(_IndexItem):
 		super(_Node, self).__init__(data)
 		self.children = []
 	
+	'''
 	def add_data(self, data, distance, mtree):
 		child = self.do_add_data(data)
 		self.update_metrics(child, distance)
@@ -216,11 +219,13 @@ class _Node(_IndexItem):
 	def _check_child_metrics(self, child, mtree):
 		assert child.distance_to_parent == mtree.distance_function(child.data, self.data)
 		assert child.distance_to_parent + child.radius <= self.radius
+	'''
 
 
 
 class _RootLeafNode(_Node):
 	
+	'''
 	do_add_data = _Node.do_add_data__leaf
 	
 	get_split_node_replacement_class = _Node.get_split_node_replacement_class__leaf
@@ -243,11 +248,13 @@ class _RootLeafNode(_Node):
 	
 	def _check_min_capacity(self, mtree):
 		assert len(self.children) >= 1
+	'''
 
 
 
 class _RootNode(_Node):
 	
+	'''
 	def remove_data(self, data, distance, mtree):
 		try:
 			super(_RootNode, self).remove_data(data, distance, mtree)
@@ -280,6 +287,7 @@ class _RootNode(_Node):
 	@staticmethod
 	def _get_expected_child_class():
 		return (_InternalNode, _LeafNode)
+	'''
 
 
 class _InternalNode(_Node):
@@ -288,12 +296,14 @@ class _InternalNode(_Node):
 
 class _LeafNode(_Node):
 	
+	'''
 	do_remove_data = _Node.do_remove_data__leaf
 	
 	def get_min_capacity(self, mtree):
 		return mtree.min_node_capacity
 	
 	_get_expected_child_class = _Node._get_expected_child_class__leaf
+	'''
 
 
 class _Entry(_IndexItem):
