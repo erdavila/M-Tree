@@ -24,6 +24,15 @@ _ItemWithDistances = namedtuple('_ItemWithDistances', 'item, distance, min_dista
 
 
 
+class _RootNodeReplacement(Exception):
+	def __init__(self, new_root):
+		super(_RootNodeReplacement, self).__init__(new_root)
+		self.new_root = new_root
+
+class _NodeUnderCapacity(Exception):
+	pass
+
+
 class _IndexItem(object):
 	
 	def __init__(self, data):
@@ -65,9 +74,28 @@ class _Node(_IndexItem):
 		if len(self.children) > mtree.max_node_capacity:
 			raise NotImplementedError()
 	
+	def _add_data__leaf(self, data):
+		entry = _Entry(data)
+		self.children.append(entry)
+		return entry
+	
+	def remove_data(self, data):
+		self._remove_data(data)
+		if len(self.children) < self._min_capacity():
+			raise _NodeUnderCapacity()
+	
+	def _remove_data__leaf(self, data):
+		index = self.get_child_index_by_data(data)
+		del self.children[index]
+	
 	def update_metrics(self, child, distance):
 		child.distance_to_parent = distance
 		self.radius = max(self.radius, distance + child.radius)
+	
+	def get_child_index_by_data(self, data):
+		for index, child in enumerate(self.children):
+			if child.data == data:
+				return index
 	
 	def _check(self, mtree):
 		super(_Node, self)._check()
@@ -92,11 +120,20 @@ class _Node(_IndexItem):
 
 class _RootLeafNode(_Node):
 	
-	def _add_data(self, data):
-		entry = _Entry(data)
-		self.children.append(entry)
-		return entry
-
+	_add_data = _Node._add_data__leaf
+	
+	def remove_data(self, data):
+		try:
+			super(_RootLeafNode, self).remove_data(data)
+		except _NodeUnderCapacity:
+			raise _RootNodeReplacement(None)
+	
+	_remove_data = _Node._remove_data__leaf
+	
+	@staticmethod
+	def _min_capacity():
+		return 1
+	
 	_check_distance_to_parent = _Node._check_distance_to_parent__root
 	
 	_get_expected_child_class = _Node._get_expected_child_class__leaf
@@ -189,6 +226,17 @@ class MTreeBase(object):
 				self.root = _RootNode(self.root)
 				for new_node in e.new_nodes:
 					self.root.add_child(new_node)
+	
+	
+	@_checked
+	def remove(self, data):
+		"""
+		Removes an object from the index.
+		"""
+		try:
+			self.root.remove_data(data)
+		except _RootNodeReplacement as e:
+			self.root = e.new_root
 	
 	
 	def get_nearest(self, query_data, range=_INFINITY, limit=_INFINITY):

@@ -26,8 +26,8 @@ class Test(unittest.TestCase):
 	'''
 	def test00(self):  self._test('f00')
 	def test01(self):  self._test('f01')
-	'''
 	def test01r(self): self._test('f01r')
+	'''
 	def test02(self):  self._test('f02')
 	def test02r(self): self._test('f02r')
 	def test03(self):  self._test('f03')
@@ -62,29 +62,15 @@ class Test(unittest.TestCase):
 				assert action.data not in self.all_data
 				self.all_data.add(action.data)
 				self.mtree.add(action.data)
+			elif isinstance(action, generator.REMOVE):
+				assert action.data in self.all_data
+				self.all_data.remove(action.data)
+				self.mtree.remove(action.data)
 			else:
 				assert False
-			
 			
 			self._check_nearest_by_range(action.query.data, action.query.radius)
 			self._check_nearest_by_limit(action.query.data, action.query.limit)
-			'''
-			cmd, data = action[:2]
-			
-			if cmd == ADD:
-				assert data not in self.all_data
-				self.all_data.append(data)
-				self.mtree.add(data)
-			elif cmd == REMOVE:
-				self.all_data.remove(data)
-				self.mtree.remove(data)
-			elif cmd == QUERY:
-				radius, limit = action[2:]
-				self._check_nearest_by_range(data, radius)
-				self._check_nearest_by_limit(data, limit)
-			else:
-				assert False
-			'''
 	
 	
 	def _check_nearest_by_range(self, query_data, radius):
