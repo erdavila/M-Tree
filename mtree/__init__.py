@@ -191,10 +191,19 @@ class _Node(_IndexItem):
 	
 	def _check(self, mtree):
 		super(_Node, self)._check(mtree)
+		self._check_min_capacity(mtree)
+		self._check_max_capacity(mtree)
 		for child in self.children:
 			self._check_child_class(child)
 			self._check_child_metrics(child, mtree)
 			child._check(mtree)
+	
+	def _check_min_capacity(self, mtree):
+		assert len(self.children) >= mtree.min_node_capacity
+		
+	def _check_max_capacity(self, mtree):
+		assert len(self.children) <= mtree.max_node_capacity
+		
 	
 	def _check_child_class(self, child):
 		expected_class = self._get_expected_child_class()
@@ -231,6 +240,9 @@ class _RootLeafNode(_Node):
 	_check_distance_to_parent = _Node._check_distance_to_parent__root
 	
 	_get_expected_child_class = _Node._get_expected_child_class__leaf
+	
+	def _check_min_capacity(self, mtree):
+		assert len(self.children) >= 1
 
 
 
@@ -261,6 +273,9 @@ class _RootNode(_Node):
 		return 2
 	
 	_check_distance_to_parent = _Node._check_distance_to_parent__root
+	
+	def _check_min_capacity(self, mtree):
+		assert len(self.children) >= 2
 	
 	@staticmethod
 	def _get_expected_child_class():
