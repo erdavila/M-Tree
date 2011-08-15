@@ -29,6 +29,9 @@ class _RootNodeReplacement(Exception):
 		super(_RootNodeReplacement, self).__init__(new_root)
 		self.new_root = new_root
 
+class _SplitNodeReplacement(Exception):
+	pass
+
 class _NodeUnderCapacity(Exception):
 	pass
 
@@ -219,8 +222,9 @@ class MTreeBase(object):
 			self.root = _RootLeafNode(data)
 			self.root.add_data(data, 0, self)
 		else:
+			distance = self.distance_function(data, self.root.data)
 			try:
-				self.root.add_data(data)
+				self.root.add_data(data, distance, self)
 			except _SplitNodeReplacement as e:
 				assert len(e.new_nodes) == 2
 				self.root = _RootNode(self.root)
