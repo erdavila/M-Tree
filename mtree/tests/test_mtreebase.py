@@ -24,28 +24,27 @@ class Test(unittest.TestCase):
 	
 	'''
 	'''
-	def test00(self):  self._test('f00')
 	def test01(self):  self._test('f01')
-	def test01r(self): self._test('f01r')
 	def test02(self):  self._test('f02')
-	def test02r(self): self._test('f02r')
 	def test03(self):  self._test('f03')
-	def test03r(self): self._test('f03r')
 	'''
 	def test04(self):  self._test('f04')
-	def test04r(self): self._test('f04r')
 	def test05(self):  self._test('f05')
-	def test05r(self): self._test('f05r')
 	def test06(self):  self._test('f06')
-	def test06r(self): self._test('f06r')
 	def test07(self):  self._test('f07')
-	def test07r(self): self._test('f07r')
 	def test08(self):  self._test('f08')
-	def test08r(self): self._test('f08r')
 	def test09(self):  self._test('f09')
-	def test09r(self): self._test('f09r')
 	def test10(self):  self._test('f10')
-	def test10r(self): self._test('f10r')
+	def test11(self):  self._test('f11')
+	def test12(self):  self._test('f12')
+	def test13(self):  self._test('f13')
+	def test14(self):  self._test('f14')
+	def test15(self):  self._test('f15')
+	def test16(self):  self._test('f16')
+	def test17(self):  self._test('f17')
+	def test18(self):  self._test('f18')
+	def test19(self):  self._test('f19')
+	def test20(self):  self._test('f20')
 	'''
 	
 	
