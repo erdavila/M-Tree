@@ -27,8 +27,9 @@ class Test(unittest.TestCase):
 	def test01(self):  self._test('f01')
 	def test02(self):  self._test('f02')
 	def test03(self):  self._test('f03')
-	'''
 	def test04(self):  self._test('f04')
+	'''
+	
 	def test05(self):  self._test('f05')
 	def test06(self):  self._test('f06')
 	def test07(self):  self._test('f07')

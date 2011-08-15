@@ -1,4 +1,5 @@
 import math
+from heap_queue import HeapQueue
 
 
 
@@ -70,3 +71,31 @@ def make_split_function(promotion_function, partition_function):
 		return promoted_data1, partition1, promoted_data2, partition2
 	
 	return split_function
+
+
+
+
+def make_cached_distance_function(distance_function):
+	cache = {}
+	
+	def cached_distance_function(data1, data2):
+		try:
+			distance = cache[data1][data2]
+		except KeyError:
+			distance = distance_function(data1, data2)
+			
+			if data1 in cache:
+				cache[data1][data2] = distance
+			else:
+				cache[data1] = { data2 : distance }
+			
+			if data2 in cache:
+				cache[data2][data1] = distance
+			else:
+				cache[data2] = { data1 : distance }
+			
+		return distance
+	
+	cached_distance_function.cache = cache
+	
+	return cached_distance_function
