@@ -72,8 +72,7 @@ class _Node(_IndexItem):
 	
 	
 	def add_data(self, data, distance, mtree):
-		child = self.do_add_data(data)
-		self.update_metrics(child, distance)
+		self.do_add_data(data, distance)
 		
 		if len(self.children) > mtree.max_node_capacity:
 			data_objects = frozenset(child.data for child in self.children)
@@ -163,10 +162,10 @@ class _NonRootNodeTrait(_Node):
 
 class _LeafNodeTrait(_Node):
 	
-	def do_add_data(self, data):
+	def do_add_data(self, data, distance):
 		entry = _Entry(data)
 		self.children.append(entry)
-		return entry
+		self.update_metrics(entry, distance)
 	
 	@staticmethod
 	def get_split_node_replacement_class():
