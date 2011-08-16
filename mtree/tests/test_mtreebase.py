@@ -57,7 +57,7 @@ class Test(unittest.TestCase):
 	
 
 	def _test_fixture(self, fixture):
-		for action in fixture.ACTIONS:
+		def callback(action):
 			if isinstance(action, generator.ADD):
 				assert action.data not in self.all_data
 				self.all_data.add(action.data)
@@ -67,10 +67,12 @@ class Test(unittest.TestCase):
 				self.all_data.remove(action.data)
 				self.mtree.remove(action.data)
 			else:
-				assert False
+				assert False, action.__class__
 			
 			self._check_nearest_by_range(action.query.data, action.query.radius)
 			self._check_nearest_by_limit(action.query.data, action.query.limit)
+		
+		fixture.PERFORM(callback)
 	
 	
 	def _check_nearest_by_range(self, query_data, radius):

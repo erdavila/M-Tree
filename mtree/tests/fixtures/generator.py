@@ -153,10 +153,9 @@ def print_test_data(fixture, options):
 	print
 	print 'DIMENSIONS = %d' % fixture.DIMENSIONS
 	print
-	print 'ACTIONS = ('
+	print 'def PERFORM(callback):'
 	for action in fixture.ACTIONS:
-		print "\t%r," % action
-	print ')'
+		print "\tcallback(%r)" % action
 
 
 
