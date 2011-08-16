@@ -45,7 +45,6 @@ class _IndexItem(object):
 		self.radius = 0                  # Updated when a child is added to this item
 		self.distance_to_parent = None   # Updated when this item is added to a parent
 	
-	'''
 	def _check(self, mtree):
 		self._check_data()
 		self._check_radius()
@@ -59,14 +58,9 @@ class _IndexItem(object):
 		assert self.radius >= 0
 	
 	def _check_distance_to_parent(self):
-		assert not isinstance(self, (_RootLeafNode, _RootNode)), self
+		assert not isinstance(self, _RootNodeTrait), self
 		assert self.distance_to_parent is not None
 		assert self.distance_to_parent >= 0
-	
-	def _check_distance_to_parent__root(self):
-		assert isinstance(self, (_RootLeafNode, _RootNode)), self
-		assert self.distance_to_parent is None
-	'''
 
 
 
@@ -76,7 +70,7 @@ class _Node(_IndexItem):
 		super(_Node, self).__init__(data)
 		self.children = []
 	
-	'''
+	
 	def add_data(self, data, distance, mtree):
 		child = self.do_add_data(data)
 		self.update_metrics(child, distance)
@@ -101,11 +95,7 @@ class _Node(_IndexItem):
 			
 			raise _SplitNodeReplacement(new_nodes)
 	
-	
-	def do_add_data__leaf(self, data):
-		entry = _Entry(data)
-		self.children.append(entry)
-		return entry
+	'''
 	
 	def get_split_node_replacement_class__leaf(self):
 		return _LeafNode
@@ -114,17 +104,12 @@ class _Node(_IndexItem):
 		self.children.append(child)
 		self.update_metrics(child, distance)
 	
+	'''
 	def remove_data(self, data, distance, mtree):
 		self.do_remove_data(data, distance, mtree)
 		if len(self.children) < self.get_min_capacity(mtree):
 			raise _NodeUnderCapacity()
-	
-	def do_remove_data__leaf(self, data, distance, mtree):
-		index = self.get_child_index_by_data(data)
-		if index is None:
-			raise KeyError("Data not found")
-		else:
-			del self.children[index]
+	'''
 	
 	def do_remove_data(self, data, distance, mtree):
 		assert not isinstance(self, (_RootLeafNode, _LeafNode)), self
@@ -144,6 +129,7 @@ class _Node(_IndexItem):
 						return
 		raise KeyError("Data not found")
 	
+	'''
 	def update_metrics(self, child, distance):
 		child.distance_to_parent = distance
 		self.radius = max(self.radius, distance + child.radius)
@@ -152,7 +138,10 @@ class _Node(_IndexItem):
 		for index, child in enumerate(self.children):
 			if child.data == data:
 				return index
+		else:
+			return None
 	
+	'''
 	def get_child_by_data(self, data):
 		index = self.get_child_index_by_data(data)
 		child = self.children[index]
@@ -191,7 +180,8 @@ class _Node(_IndexItem):
 			# Donate
 			raise NotImplementedError()
 		
-	
+	'''
+		
 	def _check(self, mtree):
 		super(_Node, self)._check(mtree)
 		self._check_min_capacity(mtree)
@@ -201,54 +191,71 @@ class _Node(_IndexItem):
 			self._check_child_metrics(child, mtree)
 			child._check(mtree)
 	
+	'''
+	
 	def _check_min_capacity(self, mtree):
 		assert len(self.children) >= mtree.min_node_capacity
-		
+	'''
+	
 	def _check_max_capacity(self, mtree):
 		assert len(self.children) <= mtree.max_node_capacity
-		
 	
 	def _check_child_class(self, child):
 		expected_class = self._get_expected_child_class()
 		assert isinstance(child, expected_class)
 	
-	@staticmethod
-	def _get_expected_child_class__leaf(self):
-		return _Entry
-	
 	def _check_child_metrics(self, child, mtree):
 		assert child.distance_to_parent == mtree.distance_function(child.data, self.data)
 		assert child.distance_to_parent + child.radius <= self.radius
-	'''
 
 
 
-class _RootLeafNode(_Node):
+class _RootNodeTrait(_Node):
+		
+	def _check_distance_to_parent(self):
+		assert self.distance_to_parent is None
+
+
+
+class _LeafNodeTrait(_Node):
+	
+	def do_add_data(self, data):
+		entry = _Entry(data)
+		self.children.append(entry)
+		return entry
+	
+	def do_remove_data(self, data, distance, mtree):
+		index = self.get_child_index_by_data(data)
+		if index is None:
+			raise KeyError("Data not found")
+		else:
+			del self.children[index]
+	
+	@staticmethod
+	def _get_expected_child_class():
+		return _Entry
+
+
+
+class _RootLeafNode(_RootNodeTrait, _LeafNodeTrait):
 	
 	'''
-	do_add_data = _Node.do_add_data__leaf
-	
 	get_split_node_replacement_class = _Node.get_split_node_replacement_class__leaf
+	'''
 	
 	def remove_data(self, data, distance, mtree):
 		try:
 			super(_RootLeafNode, self).remove_data(data, distance, mtree)
 		except _NodeUnderCapacity:
+			assert len(self.children) == 0
 			raise _RootNodeReplacement(None)
-	
-	do_remove_data = _Node.do_remove_data__leaf
 	
 	@staticmethod
 	def get_min_capacity(mtree):
 		return 1
 	
-	_check_distance_to_parent = _Node._check_distance_to_parent__root
-	
-	_get_expected_child_class = _Node._get_expected_child_class__leaf
-	
 	def _check_min_capacity(self, mtree):
 		assert len(self.children) >= 1
-	'''
 
 
 
