@@ -72,7 +72,7 @@ class _Node(_IndexItem):
 	
 	
 	def add_data(self, data, distance, mtree):
-		self.do_add_data(data, distance)
+		self.do_add_data(data, distance, mtree)
 		
 		if len(self.children) > mtree.max_node_capacity:
 			data_objects = frozenset(child.data for child in self.children)
@@ -106,7 +106,10 @@ class _Node(_IndexItem):
 	
 	def update_metrics(self, child, distance):
 		child.distance_to_parent = distance
-		self.radius = max(self.radius, distance + child.radius)
+		self.update_radius(child)
+	
+	def update_radius(self, child):
+		self.radius = max(self.radius, child.distance_to_parent + child.radius)
 	
 	def get_child_index_by_data(self, data):
 		for index, child in enumerate(self.children):
@@ -162,7 +165,7 @@ class _NonRootNodeTrait(_Node):
 
 class _LeafNodeTrait(_Node):
 	
-	def do_add_data(self, data, distance):
+	def do_add_data(self, data, distance, mtree):
 		entry = _Entry(data)
 		self.children.append(entry)
 		self.update_metrics(entry, distance)
@@ -186,9 +189,42 @@ class _LeafNodeTrait(_Node):
 
 class _NonLeafNodeTrait(_Node):
 	
+	CandidateChild = namedtuple('CandidateChild', 'index, distance, metric')
+	
+	
+	def do_add_data(self, data, distance, mtree):
+		
+		min_radius_increase_needed = self.CandidateChild(None, None, _INFINITY)
+		nearest_distance = self.CandidateChild(None, None, _INFINITY)
+		
+		for child_index, child in enumerate(self.children):
+			distance = mtree.distance_function(child.data, data)
+			if distance > child.radius:
+				radius_increase = distance - child.radius
+				if radius_increase < min_radius_increase_needed.metric:
+					min_radius_increase_needed = self.CandidateChild(child_index, distance, radius_increase)
+			else:
+				if distance < nearest_distance.metric:
+					nearest_distance = self.CandidateChild(child_index, distance, distance)
+		
+		if nearest_distance.index is not None:
+			chosen = nearest_distance
+		else:
+			chosen = min_radius_increase_needed
+		
+		child = self.children[chosen.index]
+		try:
+			child.add_data(data, chosen.distance, mtree)
+		except _SplitNodeReplacement as e:
+			assert len(e.new_nodes) == 2
+			# Replace current child with new nodes
+			del self.children[child_index]
+			for new_child in e.new_nodes:
+				self.add_child(new_child, mtree)
+	
+	
 	def do_remove_data(self, data, distance, mtree):
-		assert not isinstance(self, (_RootLeafNode, _LeafNode)), self
-		for child in self.children:
+		for child_index, child in enumerate(self.children):
 			if abs(distance - child.distance_to_parent) <= child.radius:   # TODO: confirm
 				distance_to_child = mtree.distance_function(data, child.data)
 				if distance_to_child <= child.radius:
@@ -198,14 +234,16 @@ class _NonLeafNodeTrait(_Node):
 						# If KeyError was raised, then the data was not found in the child
 						pass
 					except _NodeUnderCapacity:
-						self.balance_children(child, mtree)
+						expanded_child = self.balance_children(child, child_index, mtree)
+						self.update_radius(expanded_child)
 						return
 					else:
+						self.update_radius(child)
 						return
 		raise KeyError("Data not found")
 
 
-	def balance_children(self, the_child, mtree):
+	def balance_children(self, the_child, child_index, mtree):
 		# Tries to find another_child which can donate a grandchild to the_child.
 		
 		nearest_donor = None
@@ -231,11 +269,22 @@ class _NonLeafNodeTrait(_Node):
 				distance = mtree.distance_function(grandchild.data, nearest_merge_candidate.data)
 				nearest_merge_candidate.add_child(grandchild, distance)
 			
-			index = self.get_child_index_by_data(the_child.data)
-			del self.children[index]
+			del self.children[child_index]
+			return nearest_merge_candidate
 		else:
 			# Donate
-			raise NotImplementedError()
+			# Look for the nearest grandchild
+			nearest_grandchild_distance = _INFINITY
+			for index, grandchild in enumerate(nearest_donor.children):
+				distance = mtree.distance_function(grandchild.data, the_child.data)
+				if distance < nearest_grandchild_distance:
+					nearest_grandchild_distance = distance
+					nearest_grandchild_index = index
+			
+			donated_grandchild = nearest_donor.children[nearest_grandchild_index]
+			del nearest_donor.children[nearest_grandchild_index]
+			the_child.add_child(donated_grandchild, nearest_grandchild_distance)
+			return the_child
 
 
 
