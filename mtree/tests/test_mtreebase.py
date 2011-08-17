@@ -48,6 +48,8 @@ class Test(unittest.TestCase):
 	def test19(self):  self._test('f19')
 	def test20(self):  self._test('f20')
 	
+	def testLots(self):  self._test('fLots')
+	
 	
 	def testRemoveNonExisting(self):
 		# Empty
