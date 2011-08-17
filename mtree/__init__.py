@@ -87,7 +87,7 @@ class _Node(_IndexItem):
 			                                 (promoted_data2, partition2)]:
 				new_node = split_node_replacement_class(promoted_data)
 				for data in partition:
-					child = self.get_child_by_data(data)
+					child = self.get_child_by_data(data)  # TODO: What if more than one child with same data?
 					distance = cached_distance_function(promoted_data, data)
 					new_node.add_child(child, distance)
 				new_nodes.append(new_node)
@@ -218,9 +218,10 @@ class _NonLeafNodeTrait(_Node):
 		except _SplitNodeReplacement as e:
 			assert len(e.new_nodes) == 2
 			# Replace current child with new nodes
-			del self.children[child_index]
+			del self.children[chosen.index]
 			for new_child in e.new_nodes:
-				self.add_child(new_child, mtree)
+				distance = mtree.distance_function(self.data, new_child.data)
+				self.add_child(new_child, distance)
 	
 	
 	def do_remove_data(self, data, distance, mtree):
