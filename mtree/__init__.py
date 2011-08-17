@@ -222,6 +222,13 @@ class _NonLeafNodeTrait(_Node):
 			for new_child in e.new_nodes:
 				distance = mtree.distance_function(self.data, new_child.data)
 				self.add_child(new_child, distance)
+		else:
+			self.update_radius(child)
+	
+	
+	@staticmethod
+	def get_split_node_replacement_class():
+		return _InternalNode
 	
 	
 	def do_remove_data(self, data, distance, mtree):
@@ -286,6 +293,11 @@ class _NonLeafNodeTrait(_Node):
 			del nearest_donor.children[nearest_grandchild_index]
 			the_child.add_child(donated_grandchild, nearest_grandchild_distance)
 			return the_child
+	
+	
+	@staticmethod
+	def _get_expected_child_class():
+		return (_InternalNode, _LeafNode)
 
 
 
@@ -316,7 +328,7 @@ class _RootNode(_RootNodeTrait, _NonLeafNodeTrait):
 			# Promote the only child to root
 			(the_child,) = self.children
 			if isinstance(the_child, _InternalNode):
-				raise NotImplementedError()
+				new_root_class = _RootNode
 			else:
 				assert isinstance(the_child, _LeafNode)
 				new_root_class = _RootLeafNode
@@ -335,14 +347,10 @@ class _RootNode(_RootNodeTrait, _NonLeafNodeTrait):
 	
 	def _check_min_capacity(self, mtree):
 		assert len(self.children) >= 2
-	
-	@staticmethod
-	def _get_expected_child_class():
-		return (_InternalNode, _LeafNode)
 
 
 
-class _InternalNode(_Node):
+class _InternalNode(_NonRootNodeTrait, _NonLeafNodeTrait):
 	pass
 
 

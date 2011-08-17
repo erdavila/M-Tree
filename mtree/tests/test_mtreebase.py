@@ -10,9 +10,9 @@ class Test(unittest.TestCase):
 	def setUp(self):
 		
 		# Removing randomness
-		def not_random_promotion(positions, distance_function):
-			positions = sorted(positions)
-			return positions[0], positions[-1]
+		def not_random_promotion(data_objects, distance_function):
+			data_objects = sorted(data_objects)
+			return data_objects[0], data_objects[-1]
 		
 		self.mtree = MTreeBase(
 				min_node_capacity=2,
@@ -31,8 +31,8 @@ class Test(unittest.TestCase):
 	def test05(self):  self._test('f05')
 	def test06(self):  self._test('f06')
 	def test07(self):  self._test('f07')
-	'''
 	def test08(self):  self._test('f08')
+	'''
 	def test09(self):  self._test('f09')
 	def test10(self):  self._test('f10')
 	def test11(self):  self._test('f11')
