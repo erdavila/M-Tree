@@ -177,7 +177,7 @@ class _LeafNodeTrait(_Node):
 	def do_remove_data(self, data, distance, mtree):
 		index = self.get_child_index_by_data(data)
 		if index is None:
-			raise KeyError("Data not found")
+			raise KeyError()
 		else:
 			del self.children[index]
 	
@@ -248,7 +248,7 @@ class _NonLeafNodeTrait(_Node):
 					else:
 						self.update_radius(child)
 						return
-		raise KeyError("Data not found")
+		raise KeyError()
 
 
 	def balance_children(self, the_child, child_index, mtree):
@@ -444,6 +444,9 @@ class MTreeBase(object):
 		"""
 		Removes an object from the index.
 		"""
+		if self.root is None:
+			raise KeyError()
+		
 		distance_to_root = self.distance_function(data, self.root.data)
 		try:
 			self.root.remove_data(data, distance_to_root, self)

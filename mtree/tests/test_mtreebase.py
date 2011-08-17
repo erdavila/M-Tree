@@ -47,8 +47,30 @@ class Test(unittest.TestCase):
 	def test18(self):  self._test('f18')
 	def test19(self):  self._test('f19')
 	def test20(self):  self._test('f20')
-	'''
-	'''
+	
+	
+	def testRemoveNonExisting(self):
+		# Empty
+		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
+		
+		# With some items
+		self.mtree.add((4, 44))
+		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
+		
+		self.mtree.add((95, 43))
+		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
+		
+		self.mtree.add((76, 21))
+		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
+		
+		self.mtree.add((64, 53))
+		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
+		
+		self.mtree.add((47, 3))
+		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
+		
+		self.mtree.add((26, 11))
+		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
 	
 	
 	
