@@ -38,13 +38,13 @@ class Test(unittest.TestCase):
 	def test12(self):  self._test('f12')
 	def test13(self):  self._test('f13')
 	def test14(self):  self._test('f14')
-	'''
 	def test15(self):  self._test('f15')
 	def test16(self):  self._test('f16')
 	def test17(self):  self._test('f17')
 	def test18(self):  self._test('f18')
 	def test19(self):  self._test('f19')
 	def test20(self):  self._test('f20')
+	'''
 	'''
 	
 	
