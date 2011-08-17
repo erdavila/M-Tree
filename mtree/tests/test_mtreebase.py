@@ -22,8 +22,11 @@ class Test(unittest.TestCase):
 		self.all_data = set()
 	
 	
-	'''
-	'''
+	
+	def testEmpty(self):
+		self._check_nearest_by_range((1, 2, 3), 4)
+		self._check_nearest_by_limit((1, 2, 3), 4)
+	
 	def test01(self):  self._test('f01')
 	def test02(self):  self._test('f02')
 	def test03(self):  self._test('f03')
