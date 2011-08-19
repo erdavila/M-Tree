@@ -2,8 +2,8 @@ import unittest
 import os.path
 import sys
 
-from mtree.tests import fixtures
-import fixtures.generator as generator
+import mtree.tests.fixtures as fixtures
+import mtree.tests.fixtures.generator as generator
 from mtree import MTreeBase
 import mtree.functions as f
 

@@ -4,6 +4,7 @@ from heap_queue import HeapQueue
 
 
 
+# TODO: remove _checked() decorator and create _CheckedMTreeBase (?)
 _CHECKED = True
 if _CHECKED:
 	def _checked(unchecked_method):
@@ -68,7 +69,7 @@ class _Node(_IndexItem):
 	
 	def __init__(self, data):
 		super(_Node, self).__init__(data)
-		self.children = []
+		self.children = []    # TODO: turn into dict()?
 	
 	
 	def add_data(self, data, distance, mtree):
@@ -154,7 +155,7 @@ class _Node(_IndexItem):
 		for child in self.children:
 			self._check_child_class(child)
 			self._check_child_metrics(child, mtree)
-			child._check(mtree)
+			child._check(mtree)   # TODO: check if every sub-tree has same height
 	
 	def _check_max_capacity(self, mtree):
 		assert len(self.children) <= mtree.max_node_capacity
