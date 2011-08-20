@@ -1,6 +1,19 @@
 #!/usr/bin/env python
 import sys
+import time
 from mtree import MTreeBase
+
+
+class Timer(object):
+	def __init__(self):
+		self.clock = time.clock()
+		self.time = time.time()
+	
+	def getTimes(self):
+		c = time.clock()
+		t = time.time()
+		return (c - self.clock, t - self.time)
+
 
 
 def word_distance(word1, word2):
@@ -44,6 +57,7 @@ def main():
 	mtree = MTreeBase(distance_function=word_distance)
 	
 	loaded_words = 0
+	t = Timer()
 	print 'Indexing...', ; sys.stdout.flush()
 	with open('pt-br.dic') as f:
 		for line in f:
@@ -57,11 +71,17 @@ def main():
 				if loaded_words % 100 == 0:
 					print '\r%d words indexed' % loaded_words, ; sys.stdout.flush()
 	print '\r%d words indexed' % loaded_words
+	times = t.getTimes()
+	print 'TIMES: %0.2fuser %0.2ftotal' % times
+	print 
 	
 	while True:
 		word = unicode(raw_input("Type a word: "), 'utf-8')
+		t = Timer()
 		for near in mtree.get_nearest(word, limit=10):
-			print near.distance, near.data
+			print '\t%d %s' % (near.distance, near.data)
+		times = t.getTimes()
+		print 'TIMES: %0.2fuser %0.2ftotal' % times
 		print
 
 
