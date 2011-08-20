@@ -4,6 +4,10 @@ import time
 from mtree import MTreeBase
 
 
+#DICT_FILE = 'pt-br.dic'
+DICT_FILE = 'en.dic'
+
+
 class Timer(object):
 	def __init__(self):
 		self.clock = time.clock()
@@ -43,7 +47,6 @@ def word_distance(word1, word2):
 						distance[len1-1][len2  ],
 				])
 	
-	#print distance
 	return distance[len(word1)][len(word2)]
 
 
@@ -59,7 +62,7 @@ def main():
 	loaded_words = 0
 	t = Timer()
 	print 'Indexing...', ; sys.stdout.flush()
-	with open('pt-br.dic') as f:
+	with open(DICT_FILE) as f:
 		for line in f:
 			if line[0] != '%':
 				word = unicode(line.strip(), 'utf-8')
