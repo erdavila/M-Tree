@@ -55,7 +55,7 @@ class _Node(_IndexItem):
 	
 	def __init__(self, data):
 		super(_Node, self).__init__(data)
-		self.children = []    # TODO: turn into dict()?
+		self.children = {}
 	
 	
 	def add_data(self, data, distance, mtree):
@@ -65,7 +65,7 @@ class _Node(_IndexItem):
 	
 	def check_max_capacity(self, mtree):
 		if len(self.children) > mtree.max_node_capacity:
-			data_objects = frozenset(child.data for child in self.children)
+			data_objects = frozenset(self.children.iterkeys())
 			cached_distance_function = functions.make_cached_distance_function(mtree.distance_function)
 			
 			(promoted_data1, partition1,
@@ -77,7 +77,7 @@ class _Node(_IndexItem):
 			                                 (promoted_data2, partition2)]:
 				new_node = split_node_replacement_class(promoted_data)
 				for data in partition:
-					child = self.get_child_by_data(data)
+					child = self.children[data]
 					distance = cached_distance_function(promoted_data, data)
 					new_node.add_child(child, distance, mtree)
 				new_nodes.append(new_node)
@@ -96,19 +96,6 @@ class _Node(_IndexItem):
 	
 	def update_radius(self, child):
 		self.radius = max(self.radius, child.distance_to_parent + child.radius)
-	
-	def get_child_index_by_data(self, data):
-		for index, child in enumerate(self.children):
-			if child.data == data:
-				return index
-		else:
-			return None
-	
-	def get_child_by_data(self, data):
-		index = self.get_child_index_by_data(data)
-		child = self.children[index]
-		assert child.data == data
-		return child
 		
 	def _check(self, mtree):
 		super(_Node, self)._check(mtree)
@@ -116,7 +103,8 @@ class _Node(_IndexItem):
 		self._check_max_capacity(mtree)
 		
 		child_height = None
-		for child in self.children:
+		for data, child in self.children.iteritems():
+			assert child.data == data
 			self._check_child_class(child)
 			self._check_child_metrics(child, mtree)
 			
@@ -164,11 +152,15 @@ class _LeafNodeTrait(_Node):
 	
 	def do_add_data(self, data, distance, mtree):
 		entry = _Entry(data)
-		self.children.append(entry)
+		assert data not in self.children
+		self.children[data] = entry
+		assert data in self.children
 		self.update_metrics(entry, distance)
 	
 	def add_child(self, child, distance, mtree):
-		self.children.append(child)
+		assert child.data not in self.children
+		self.children[child.data] = child
+		assert child.data in self.children
 		self.update_metrics(child, distance)
 	
 	@staticmethod
@@ -176,11 +168,7 @@ class _LeafNodeTrait(_Node):
 		return _LeafNode
 	
 	def do_remove_data(self, data, distance, mtree):
-		index = self.get_child_index_by_data(data)
-		if index is None:
-			raise KeyError()
-		else:
-			del self.children[index]
+		del self.children[data]
 	
 	@staticmethod
 	def _get_expected_child_class():
@@ -190,7 +178,7 @@ class _LeafNodeTrait(_Node):
 
 class _NonLeafNodeTrait(_Node):
 	
-	CandidateChild = namedtuple('CandidateChild', 'index, distance, metric')
+	CandidateChild = namedtuple('CandidateChild', 'node, distance, metric')
 	
 	
 	def do_add_data(self, data, distance, mtree):
@@ -198,28 +186,28 @@ class _NonLeafNodeTrait(_Node):
 		min_radius_increase_needed = self.CandidateChild(None, None, _INFINITY)
 		nearest_distance = self.CandidateChild(None, None, _INFINITY)
 		
-		for child_index, child in enumerate(self.children):
+		for child in self.children.itervalues():
 			distance = mtree.distance_function(child.data, data)
 			if distance > child.radius:
 				radius_increase = distance - child.radius
 				if radius_increase < min_radius_increase_needed.metric:
-					min_radius_increase_needed = self.CandidateChild(child_index, distance, radius_increase)
+					min_radius_increase_needed = self.CandidateChild(child, distance, radius_increase)
 			else:
 				if distance < nearest_distance.metric:
-					nearest_distance = self.CandidateChild(child_index, distance, distance)
+					nearest_distance = self.CandidateChild(child, distance, distance)
 		
-		if nearest_distance.index is not None:
+		if nearest_distance.node is not None:
 			chosen = nearest_distance
 		else:
 			chosen = min_radius_increase_needed
 		
-		child = self.children[chosen.index]
+		child = chosen.node
 		try:
 			child.add_data(data, chosen.distance, mtree)
 		except _SplitNodeReplacement as e:
 			assert len(e.new_nodes) == 2
 			# Replace current child with new nodes
-			del self.children[chosen.index]
+			del self.children[child.data]
 			for new_child in e.new_nodes:
 				distance = mtree.distance_function(self.data, new_child.data)
 				self.add_child(new_child, distance, mtree)
@@ -227,27 +215,26 @@ class _NonLeafNodeTrait(_Node):
 			self.update_radius(child)
 	
 	
-	def add_child(self, child, distance, mtree):
-		new_children = [(child, distance)]
+	def add_child(self, new_child, distance, mtree):
+		new_children = [(new_child, distance)]
 		while new_children:
 			new_child, distance = new_children.pop()
 			
-			index = self.get_child_index_by_data(new_child.data)
-			if index is None:
-				self.children.append(new_child)
+			if new_child.data not in self.children:
+				self.children[new_child.data] = new_child
 				self.update_metrics(new_child, distance)
 			else:
-				existing_child = self.children[index]
-				assert existing_child.data == child.data
+				existing_child = self.children[new_child.data]
+				assert existing_child.data == new_child.data
 				
-				# Transfer the children of the new_child to the existing_child
-				for grandchild in child.children:
+				# Transfer the _children_ of the new_child to the existing_child
+				for grandchild in new_child.children.itervalues():
 					existing_child.add_child(grandchild, grandchild.distance_to_parent, mtree)
 				
 				try:
 					existing_child.check_max_capacity(mtree)
 				except _SplitNodeReplacement as e:
-					del self.children[index]
+					del self.children[new_child.data]
 					for new_node in e.new_nodes:
 						distance = mtree.distance_function(self.data, new_node.data)
 						new_children.append((new_node, distance))
@@ -259,7 +246,7 @@ class _NonLeafNodeTrait(_Node):
 	
 	
 	def do_remove_data(self, data, distance, mtree):
-		for child_index, child in enumerate(self.children):
+		for child in self.children.itervalues():
 			if abs(distance - child.distance_to_parent) <= child.radius:   # TODO: confirm
 				distance_to_child = mtree.distance_function(data, child.data)
 				if distance_to_child <= child.radius:
@@ -269,7 +256,7 @@ class _NonLeafNodeTrait(_Node):
 						# If KeyError was raised, then the data was not found in the child
 						pass
 					except _NodeUnderCapacity:
-						expanded_child = self.balance_children(child, child_index, mtree)
+						expanded_child = self.balance_children(child, mtree)
 						self.update_radius(expanded_child)
 						return
 					else:
@@ -278,7 +265,7 @@ class _NonLeafNodeTrait(_Node):
 		raise KeyError()
 
 
-	def balance_children(self, the_child, child_index, mtree):
+	def balance_children(self, the_child, mtree):
 		# Tries to find another_child which can donate a grandchild to the_child.
 		
 		nearest_donor = None
@@ -287,7 +274,7 @@ class _NonLeafNodeTrait(_Node):
 		nearest_merge_candidate = None
 		distance_nearest_merge_candidate = _INFINITY
 		
-		for another_child in (child for child in self.children if child is not the_child):
+		for another_child in (child for child in self.children.itervalues() if child is not the_child):
 			distance = mtree.distance_function(the_child.data, another_child.data)
 			if len(another_child.children) > another_child.get_min_capacity(mtree):
 				if distance < distance_nearest_donor:
@@ -300,25 +287,24 @@ class _NonLeafNodeTrait(_Node):
 		
 		if nearest_donor is None:
 			# Merge
-			for grandchild in the_child.children:
+			for grandchild in the_child.children.itervalues():
 				distance = mtree.distance_function(grandchild.data, nearest_merge_candidate.data)
 				nearest_merge_candidate.add_child(grandchild, distance, mtree)
 			
-			del self.children[child_index]
+			del self.children[the_child.data]
 			return nearest_merge_candidate
 		else:
 			# Donate
 			# Look for the nearest grandchild
 			nearest_grandchild_distance = _INFINITY
-			for index, grandchild in enumerate(nearest_donor.children):
+			for grandchild in nearest_donor.children.itervalues():
 				distance = mtree.distance_function(grandchild.data, the_child.data)
 				if distance < nearest_grandchild_distance:
 					nearest_grandchild_distance = distance
-					nearest_grandchild_index = index
+					nearest_grandchild = grandchild
 			
-			donated_grandchild = nearest_donor.children[nearest_grandchild_index]
-			del nearest_donor.children[nearest_grandchild_index]
-			the_child.add_child(donated_grandchild, nearest_grandchild_distance, mtree)
+			del nearest_donor.children[nearest_grandchild.data]
+			the_child.add_child(nearest_grandchild, nearest_grandchild_distance, mtree)
 			return the_child
 	
 	
@@ -353,7 +339,7 @@ class _RootNode(_RootNodeTrait, _NonLeafNodeTrait):
 			super(_RootNode, self).remove_data(data, distance, mtree)
 		except _NodeUnderCapacity:
 			# Promote the only child to root
-			(the_child,) = self.children
+			(the_child,) = self.children.itervalues()
 			if isinstance(the_child, _InternalNode):
 				new_root_class = _RootNode
 			else:
@@ -361,7 +347,7 @@ class _RootNode(_RootNodeTrait, _NonLeafNodeTrait):
 				new_root_class = _RootLeafNode
 			
 			new_root = new_root_class(the_child.data)
-			for grandchild in the_child.children:
+			for grandchild in the_child.children.itervalues():
 				distance = mtree.distance_function(new_root.data, grandchild.data)
 				new_root.add_child(grandchild, distance, mtree)
 			
@@ -508,7 +494,7 @@ class MTreeBase(object):
 			node = pending.item
 			assert isinstance(node, _Node)
 			
-			for child in node.children:
+			for child in node.children.itervalues():
 				if abs(pending.distance - child.distance_to_parent) - child.radius <= range:
 					child_distance = self.distance_function(query_data, child.data)
 					child_min_distance = max(child_distance - child.radius, 0)
