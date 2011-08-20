@@ -73,7 +73,10 @@ class _Node(_IndexItem):
 	
 	def add_data(self, data, distance, mtree):
 		self.do_add_data(data, distance, mtree)
-		
+		self.check_max_capacity(mtree)
+	
+	
+	def check_max_capacity(self, mtree):
 		if len(self.children) > mtree.max_node_capacity:
 			data_objects = frozenset(child.data for child in self.children)
 			cached_distance_function = functions.make_cached_distance_function(mtree.distance_function)
@@ -87,17 +90,37 @@ class _Node(_IndexItem):
 			                                 (promoted_data2, partition2)]:
 				new_node = split_node_replacement_class(promoted_data)
 				for data in partition:
-					child = self.get_child_by_data(data)  # TODO: What if more than one child with same data?
+					child = self.get_child_by_data(data)
 					distance = cached_distance_function(promoted_data, data)
-					new_node.add_child(child, distance)
+					new_node.add_child(child, distance, mtree)
 				new_nodes.append(new_node)
 			
 			raise _SplitNodeReplacement(new_nodes)
 	
 	
-	def add_child(self, child, distance):
-		self.children.append(child)
-		self.update_metrics(child, distance)
+	def add_child(self, child, distance, mtree):
+		new_children = [child]
+		while new_children:
+			new_child = new_children.pop()
+			
+			index = self.get_child_index_by_data(new_child.data)
+			if index is None:
+				self.children.append(new_child)
+				self.update_metrics(new_child, distance)
+			else:
+				existing_child = self.children[index]
+				assert existing_child.data == child.data
+				
+				# Transfer the children of the new_child to the existing_child
+				for grandchild in child.children:
+					existing_child.add_child(grandchild, grandchild.distance_to_parent, mtree)
+				
+				try:
+					existing_child.check_max_capacity(mtree)
+				except _SplitNodeReplacement as e:
+					del self.children[index]
+					new_children.extend(e.new_nodes)
+	
 	
 	def remove_data(self, data, distance, mtree):
 		self.do_remove_data(data, distance, mtree)
@@ -221,7 +244,7 @@ class _NonLeafNodeTrait(_Node):
 			del self.children[chosen.index]
 			for new_child in e.new_nodes:
 				distance = mtree.distance_function(self.data, new_child.data)
-				self.add_child(new_child, distance)
+				self.add_child(new_child, distance, mtree)
 		else:
 			self.update_radius(child)
 	
@@ -275,7 +298,7 @@ class _NonLeafNodeTrait(_Node):
 			# Merge
 			for grandchild in the_child.children:
 				distance = mtree.distance_function(grandchild.data, nearest_merge_candidate.data)
-				nearest_merge_candidate.add_child(grandchild, distance)
+				nearest_merge_candidate.add_child(grandchild, distance, mtree)
 			
 			del self.children[child_index]
 			return nearest_merge_candidate
@@ -291,7 +314,7 @@ class _NonLeafNodeTrait(_Node):
 			
 			donated_grandchild = nearest_donor.children[nearest_grandchild_index]
 			del nearest_donor.children[nearest_grandchild_index]
-			the_child.add_child(donated_grandchild, nearest_grandchild_distance)
+			the_child.add_child(donated_grandchild, nearest_grandchild_distance, mtree)
 			return the_child
 	
 	
@@ -336,7 +359,7 @@ class _RootNode(_RootNodeTrait, _NonLeafNodeTrait):
 			new_root = new_root_class(the_child.data)
 			for grandchild in the_child.children:
 				distance = mtree.distance_function(new_root.data, grandchild.data)
-				new_root.add_child(grandchild, distance)
+				new_root.add_child(grandchild, distance, mtree)
 			
 			raise _RootNodeReplacement(new_root)
 	
@@ -436,7 +459,7 @@ class MTreeBase(object):
 				self.root = _RootNode(self.root.data)
 				for new_node in e.new_nodes:
 					distance = self.distance_function(self.root.data, new_node.data)
-					self.root.add_child(new_node, distance)
+					self.root.add_child(new_node, distance, self)
 	
 	
 	@_checked
