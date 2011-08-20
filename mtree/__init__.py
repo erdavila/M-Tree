@@ -35,6 +35,7 @@ class _IndexItem(object):
 		self._check_data()
 		self._check_radius()
 		self._check_distance_to_parent()
+		return 1
 	
 	def _check_data(self):
 		assert self.data is not None
@@ -139,10 +140,20 @@ class _Node(_IndexItem):
 		super(_Node, self)._check(mtree)
 		self._check_min_capacity(mtree)
 		self._check_max_capacity(mtree)
+		
+		child_height = None
 		for child in self.children:
 			self._check_child_class(child)
 			self._check_child_metrics(child, mtree)
-			child._check(mtree)   # TODO: check if every sub-tree has same height
+			
+			height = child._check(mtree)
+			if child_height is None:
+				child_height = height
+			else:
+				assert child_height == height
+		
+		return child_height + 1
+			
 	
 	def _check_max_capacity(self, mtree):
 		assert len(self.children) <= mtree.max_node_capacity
