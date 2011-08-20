@@ -4,21 +4,6 @@ from heap_queue import HeapQueue
 
 
 
-# TODO: remove _checked() decorator and create _CheckedMTreeBase (?)
-_CHECKED = True
-if _CHECKED:
-	def _checked(unchecked_method):
-		def checked_method(mtree, *args, **kwargs):
-			result = unchecked_method(mtree, *args, **kwargs)
-			mtree._check()
-			return result
-		return checked_method
-else:
-	def _checked(unchecked_method):
-		return unchecked_method
-
-
-
 _INFINITY = float("inf")
 
 _ItemWithDistances = namedtuple('_ItemWithDistances', 'item, distance, min_distance')
@@ -444,7 +429,6 @@ class MTreeBase(object):
 		self.root = None
 	
 	
-	@_checked
 	def add(self, data):
 		"""
 		Adds and indexes an object.
@@ -466,7 +450,6 @@ class MTreeBase(object):
 					self.root.add_child(new_node, distance, self)
 	
 	
-	@_checked
 	def remove(self, data):
 		"""
 		Removes an object from the index.

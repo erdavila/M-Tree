@@ -18,11 +18,23 @@ class Test(unittest.TestCase):
 			data_objects = sorted(data_objects)
 			return data_objects[0], data_objects[-1]
 		
+		
 		self.mtree = MTreeBase(
 				min_node_capacity=2,
 				max_node_capacity=3,
 				split_function=f.make_split_function(not_random_promotion, f.balanced_partition)
 			)
+		
+		def checked(unchecked_method):
+			def checked_method(*args, **kwargs):
+				result = unchecked_method(*args, **kwargs)
+				self.mtree._check()
+				return result
+			return checked_method
+		
+		self.mtree.add = checked(self.mtree.add)
+		self.mtree.remove = checked(self.mtree.remove)
+		
 		self.all_data = set()
 	
 	
