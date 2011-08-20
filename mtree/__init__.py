@@ -85,32 +85,6 @@ class _Node(_IndexItem):
 			raise _SplitNodeReplacement(new_nodes)
 	
 	
-	def add_child(self, child, distance, mtree):  # TODO: specialize for leaf nodes
-		new_children = [(child, distance)]
-		while new_children:
-			new_child, distance = new_children.pop()
-			
-			index = self.get_child_index_by_data(new_child.data)
-			if index is None:
-				self.children.append(new_child)
-				self.update_metrics(new_child, distance)
-			else:
-				existing_child = self.children[index]
-				assert existing_child.data == child.data
-				
-				# Transfer the children of the new_child to the existing_child
-				for grandchild in child.children:
-					existing_child.add_child(grandchild, grandchild.distance_to_parent, mtree)
-				
-				try:
-					existing_child.check_max_capacity(mtree)
-				except _SplitNodeReplacement as e:
-					del self.children[index]
-					for new_node in e.new_nodes:
-						distance = mtree.distance_function(self.data, new_node.data)
-						new_children.append((new_node, distance))
-	
-	
 	def remove_data(self, data, distance, mtree):
 		self.do_remove_data(data, distance, mtree)
 		if len(self.children) < self.get_min_capacity(mtree):
@@ -193,6 +167,10 @@ class _LeafNodeTrait(_Node):
 		self.children.append(entry)
 		self.update_metrics(entry, distance)
 	
+	def add_child(self, child, distance, mtree):
+		self.children.append(child)
+		self.update_metrics(child, distance)
+	
 	@staticmethod
 	def get_split_node_replacement_class():
 		return _LeafNode
@@ -247,6 +225,32 @@ class _NonLeafNodeTrait(_Node):
 				self.add_child(new_child, distance, mtree)
 		else:
 			self.update_radius(child)
+	
+	
+	def add_child(self, child, distance, mtree):
+		new_children = [(child, distance)]
+		while new_children:
+			new_child, distance = new_children.pop()
+			
+			index = self.get_child_index_by_data(new_child.data)
+			if index is None:
+				self.children.append(new_child)
+				self.update_metrics(new_child, distance)
+			else:
+				existing_child = self.children[index]
+				assert existing_child.data == child.data
+				
+				# Transfer the children of the new_child to the existing_child
+				for grandchild in child.children:
+					existing_child.add_child(grandchild, grandchild.distance_to_parent, mtree)
+				
+				try:
+					existing_child.check_max_capacity(mtree)
+				except _SplitNodeReplacement as e:
+					del self.children[index]
+					for new_node in e.new_nodes:
+						distance = mtree.distance_function(self.data, new_node.data)
+						new_children.append((new_node, distance))
 	
 	
 	@staticmethod
