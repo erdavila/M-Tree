@@ -165,7 +165,8 @@ class _Node(_IndexItem):
 		assert isinstance(child, expected_class)
 	
 	def _check_child_metrics(self, child, mtree):
-		assert child.distance_to_parent == mtree.distance_function(child.data, self.data)
+		dist = mtree.distance_function(child.data, self.data)
+		assert child.distance_to_parent == dist, (child.data, self.data, child.distance_to_parent, dist, abs(child.distance_to_parent - dist))
 		assert child.distance_to_parent + child.radius <= self.radius
 
 
