@@ -99,10 +99,10 @@ class _Node(_IndexItem):
 			raise _SplitNodeReplacement(new_nodes)
 	
 	
-	def add_child(self, child, distance, mtree):
-		new_children = [child]
+	def add_child(self, child, distance, mtree):  # TODO: specialize for leaf nodes
+		new_children = [(child, distance)]
 		while new_children:
-			new_child = new_children.pop()
+			new_child, distance = new_children.pop()
 			
 			index = self.get_child_index_by_data(new_child.data)
 			if index is None:
@@ -120,7 +120,9 @@ class _Node(_IndexItem):
 					existing_child.check_max_capacity(mtree)
 				except _SplitNodeReplacement as e:
 					del self.children[index]
-					new_children.extend(e.new_nodes)
+					for new_node in e.new_nodes:
+						distance = mtree.distance_function(self.data, new_node.data)
+						new_children.append((new_node, distance))
 	
 	
 	def remove_data(self, data, distance, mtree):
@@ -165,7 +167,8 @@ class _Node(_IndexItem):
 		assert isinstance(child, expected_class)
 	
 	def _check_child_metrics(self, child, mtree):
-		assert child.distance_to_parent == mtree.distance_function(child.data, self.data)
+		dist = mtree.distance_function(child.data, self.data)
+		assert child.distance_to_parent == dist, (child.data, self.data, child.distance_to_parent, dist, abs(child.distance_to_parent - dist))
 		assert child.distance_to_parent + child.radius <= self.radius
 
 

@@ -79,8 +79,8 @@ class Test(unittest.TestCase):
 		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
 	
 	
-	def testGeneratedCase01(self):
-		self._test('fG01')
+	def testGeneratedCase01(self): self._test('fG01')
+	def testGeneratedCase02(self): self._test('fG02')
 	
 	
 	def testRandom(self):
