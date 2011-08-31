@@ -4,6 +4,8 @@
 #include <vector>
 #include <cassert>
 #include "mtree.h"
+#include "functions.h"
+#include "tests/fixture.h"
 
 
 #define assertEqual(A, B)             assert(A == B);
@@ -19,7 +21,7 @@ typedef vector<int> Data;
 
 class MTreeBaseTest : public mtree::MTreeBase<Data> {
 public:
-	MTreeBaseTest() : MTreeBase<Data>(2, 3) { }
+	MTreeBaseTest() : MTreeBase<Data>(2) { }
 
 	void add(const Data& data) {
 		MTreeBase<Data>::add(data);
@@ -31,8 +33,8 @@ public:
 		_check();
 	}
 
-	double distanceFunction(const Data&, const Data&) const {
-		assert(!"IMPLEMENTED");
+	double distanceFunction(const Data& data1, const Data& data2) const {
+		return mtree::functions::euclideanDistance(data1, data2);
 	}
 
 protected:
@@ -51,21 +53,67 @@ public:
 		_checkNearestByLimit({1, 2, 3}, 4);
 	}
 
+	void test01() { _test("f01"); }
+
 private:
 	MTreeBaseTest mtree;
 	set<Data> allData;
+
+
+	void _test(const char* fixtureName) {
+		Fixture fixture = Fixture::load(fixtureName);
+		_testFixture(fixture);
+	}
+
+
+	void _testFixture(const Fixture& fixture) {
+		/*
+		cout << fixture.dimensions << endl;
+		for(vector<Fixture::Action>::const_iterator i = fixture.actions.begin(); i != fixture.actions.end(); ++i) {
+			cout << i->cmd;
+			for(size_t d = 0; d < fixture.dimensions; d++) {
+				cout << " " << i->data[d];
+			}
+			for(size_t d = 0; d < fixture.dimensions; d++) {
+				cout << " " << i->queryData[d];
+			}
+			cout << " " << i->radius << " " << i->limit << endl;
+
+		}
+		*/
+
+		for(vector<Fixture::Action>::const_iterator i = fixture.actions.begin(); i != fixture.actions.end(); ++i) {
+			switch(i->cmd) {
+			case 'A':
+				allData.insert(i->data);
+				mtree.add(i->data);
+				break;
+			default:
+				cerr << i->cmd << endl;
+				assert(false);
+				break;
+			}
+
+			_checkNearestByRange(i->queryData, i->radius);
+			_checkNearestByLimit(i->queryData, i->limit);
+		}
+
+
+		assert(!"IMPLEMENTED");
+	}
+
 
 	void _checkNearestByRange(const Data& queryData, double radius) const {
 		typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
 
 		ResultsVector results;
+		set<Data> strippedResults;
 		MTreeBaseTest::ResultsIterator i = mtree.getNearestByRange(queryData, radius);
 		for(; i != mtree.resultsEnd(); i++) {
 			MTreeBaseTest::ResultItem r = *i;
 			results.push_back(r);
+			strippedResults.insert(r.data);
 		}
-
-		// TODO: TRY: vector<MTreeBaseTest::ResultItem> result(results.begin(), results.end());
 
 		double previousDistance = 0;
 
@@ -82,10 +130,6 @@ private:
 			assertEqual(mtree.distanceFunction(i->data, queryData), i->distance);
 		}
 
-		set<Data> strippedResults;
-		for(ResultsVector::iterator i = results.begin(); i != results.end(); ++i) {
-			strippedResults.insert(i->data);
-		}
 		for(set<Data>::const_iterator data = allData.begin(); data != allData.end(); ++data) {
 			double distance = mtree.distanceFunction(*data, queryData);
 			if(distance <= radius) {
@@ -153,7 +197,7 @@ private:
 
 int main() {
 	Test().testEmpty();
-	//test01();
+	Test().test01();
 
 	cout << "OK" << endl;
 	return 0;
@@ -178,23 +222,9 @@ class Test(unittest.TestCase):
 				split_function=f.make_split_function(not_random_promotion, f.balanced_partition)
 			)
 
-		def checked(unchecked_method):
-			def checked_method(*args, **kwargs):
-				result = unchecked_method(*args, **kwargs)
-				self.mtree._check()
-				return result
-			return checked_method
-
-		self.mtree.add = checked(self.mtree.add)
-		self.mtree.remove = checked(self.mtree.remove)
-
-		self.all_data = set()
 
 
 
-	def testEmpty(self):
-		self._check_nearest_by_range((1, 2, 3), 4)
-		self._check_nearest_by_limit((1, 2, 3), 4)
 
 	def test01(self):  self._test('f01')
 	def test02(self):  self._test('f02')
@@ -286,37 +316,5 @@ class Test(unittest.TestCase):
 				print >>sys.stderr, "ATTENTION: The previously existing random test"
 				print >>sys.stderr, "has passed. Do want to delete it or convert to"
 				print >>sys.stderr, "a permanent test case?"
-
-
-
-	def _test(self, fixture_name):
-		fixtures = __import__('fixtures.' + fixture_name)
-		fixture = getattr(fixtures, fixture_name)
-		self._test_fixture(fixture)
-
-
-	def _test_fixture(self, fixture):
-		def callback(action):
-			if isinstance(action, generator.ADD):
-				assert action.data not in self.all_data
-				self.all_data.add(action.data)
-				self.mtree.add(action.data)
-			elif isinstance(action, generator.REMOVE):
-				assert action.data in self.all_data
-				self.all_data.remove(action.data)
-				self.mtree.remove(action.data)
-			else:
-				assert False, action.__class__
-
-			self._check_nearest_by_range(action.query.data, action.query.radius)
-			self._check_nearest_by_limit(action.query.data, action.query.limit)
-
-		fixture.PERFORM(callback)
-
-
-if __name__ == "__main__":
-	#import sys;sys.argv = ['', 'Test.testName']
-	unittest.main()
-
  */
 
