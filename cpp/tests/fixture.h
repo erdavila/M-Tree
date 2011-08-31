@@ -45,7 +45,7 @@ public:
 	Fixture& operator=(const Fixture&) = default;
 
 	static Fixture load(const std::string& fixtureName) {
-		std::string fixtureFileName = "tests/fixtures/" + fixtureName + ".txt";
+		std::string fixtureFileName = "cpp/tests/fixtures/" + fixtureName + ".txt";
 		std::ifstream fixtureFile(fixtureFileName);
 		assert(fixtureFile);
 

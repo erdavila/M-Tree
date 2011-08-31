@@ -1,2 +1,5 @@
-MTree-C++
+M-Tree
 *.o
+*.mk
+*.d
+makefile
