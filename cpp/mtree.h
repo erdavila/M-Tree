@@ -17,6 +17,15 @@ private:
 	class Node;
 	class Entry;
 
+	// Exception classes
+	class RootNodeReplacement {
+	public:
+		Node* newRoot;
+		RootNodeReplacement(Node* newRoot) : newRoot(newRoot) { }
+	};
+
+	class NodeUnderCapacity { };
+
 public:
 
 	class ResultItem {
@@ -281,7 +290,22 @@ public:
 		}
 	}
 
-	void remove(const T& data);
+
+	bool remove(const T& data) {
+		if(root == NULL) {
+			return false;
+		}
+
+		double distanceToRoot = distanceFunction(data, root->data);
+		try {
+			root->removeData(data, distanceToRoot, this);
+		} catch(RootNodeReplacement e) {
+			root = e.newRoot;
+		}
+
+		return true;
+	}
+
 
 	ResultsIterator getNearestByRange(const T& queryData, double range) const {
 		return getNearest(queryData, range, std::numeric_limits<unsigned int>::max());
@@ -377,7 +401,7 @@ private:
 			assert(!"IMPLEMENTED");
 		}
 
-		void addData(const T& data, double distance, MTreeBase* mtree) {
+		void addData(const T& data, double distance, const MTreeBase* mtree) {
 			doAddData(data, distance, mtree);
 			checkMaxCapacity(mtree);
 		}
@@ -424,9 +448,11 @@ private:
 		Node& operator=(const Node&) = delete; // TODO: confirm if really delete
 		Node& operator=(Node&&) = delete; // TODO: confirm if really delete
 
-		virtual void doAddData(const T& data, double distance, MTreeBase* mtree) = 0;
+		virtual void doAddData(const T& data, double distance, const MTreeBase* mtree) = 0;
 
-		void checkMaxCapacity(MTreeBase* mtree) {
+		virtual void doRemoveData(const T& data, double distance, const MTreeBase* mtree) = 0;
+
+		void checkMaxCapacity(const MTreeBase* mtree) {
 			if(children.size() > mtree->maxNodeCapacity) {
 				assert(!"IMPLEMENTED");
 				/*
@@ -453,12 +479,19 @@ private:
 
 		}
 
-		/*
-		def remove_data(self, data, distance, mtree):
-			self.do_remove_data(data, distance, mtree)
-			if len(self.children) < self.get_min_capacity(mtree):
-				raise _NodeUnderCapacity()
-		*/
+
+	public:
+		virtual void removeData(const T& data, double distance, const MTreeBase* mtree) throw (RootNodeReplacement, NodeUnderCapacity) {
+			//assert(dynamic_cast<RootNode*>(this) == 0);
+			doRemoveData(data, distance, mtree);
+			if(children.size() < getMinCapacity(mtree)) {
+				throw NodeUnderCapacity();
+			}
+		}
+
+
+	protected:
+		virtual size_t getMinCapacity(const MTreeBase* mtree) const = 0;
 
 		void updateMetrics(IndexItem* child, double distance) {
 			child->distanceToParent = distance;
@@ -497,7 +530,7 @@ private:
 
 
 	class LeafNodeTrait : public virtual Node {
-		void doAddData(const T& data, double distance, MTreeBase* mtree) {
+		void doAddData(const T& data, double distance, const MTreeBase* mtree) {
 			Entry* entry = new Entry(data);
 			assert(this->children.find(data) == this->children.end());
 			this->children[data] = entry;
@@ -515,11 +548,12 @@ private:
 		@staticmethod
 		def get_split_node_replacement_class():
 			return _LeafNode
-
-		def do_remove_data(self, data, distance, mtree):
-			del self.children[data]
-
 		*/
+
+		void doRemoveData(const T& data, double distance, const MTreeBase* mtree) {
+			this->children.erase(data);
+		}
+
 
 		void _checkChildClass(IndexItem* child) const {
 			assert(dynamic_cast<Entry*>(child) != NULL);
@@ -530,19 +564,19 @@ private:
 	class RootLeafNode : public RootNodeTrait, public LeafNodeTrait {
 	public:
 		RootLeafNode(const T& data) : Node(data) { }
-		/*
 
-		def remove_data(self, data, distance, mtree):
-			try:
-				super(_RootLeafNode, self).remove_data(data, distance, mtree)
-			except _NodeUnderCapacity:
-				assert len(self.children) == 0
-				raise _RootNodeReplacement(None)
+		void removeData(const T& data, double distance, const MTreeBase* mtree) throw (RootNodeReplacement) {
+			try {
+				Node::removeData(data, distance, mtree);
+			} catch (NodeUnderCapacity) {
+				assert(this->children.empty());
+				throw RootNodeReplacement(NULL);
+			}
+		}
 
-		@staticmethod
-		def get_min_capacity(mtree):
-			return 1
-		*/
+		size_t getMinCapacity(const MTreeBase* mtree) const {
+			return 1;
+		}
 
 		void _checkMinCapacity(const MTreeBase* mtree) const {
 			assert(this->children.size() >= 1);
@@ -845,18 +879,7 @@ class MTreeBase(object):
 		self.root = None
 
 
-	def remove(self, data):
-		"""
-		Removes an object from the index.
-		"""
-		if self.root is None:
-			raise KeyError()
-
-		distance_to_root = self.distance_function(data, self.root.data)
-		try:
-			self.root.remove_data(data, distance_to_root, self)
-		except _RootNodeReplacement as e:
-			self.root = e.new_root
+	def remove(self, data)
 
 
 	def get_nearest(self, query_data, range=_INFINITY, limit=_INFINITY):

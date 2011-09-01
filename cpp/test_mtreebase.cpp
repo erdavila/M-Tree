@@ -67,26 +67,15 @@ private:
 
 
 	void _testFixture(const Fixture& fixture) {
-		/*
-		cout << fixture.dimensions << endl;
-		for(vector<Fixture::Action>::const_iterator i = fixture.actions.begin(); i != fixture.actions.end(); ++i) {
-			cout << i->cmd;
-			for(size_t d = 0; d < fixture.dimensions; d++) {
-				cout << " " << i->data[d];
-			}
-			for(size_t d = 0; d < fixture.dimensions; d++) {
-				cout << " " << i->queryData[d];
-			}
-			cout << " " << i->radius << " " << i->limit << endl;
-
-		}
-		*/
-
 		for(vector<Fixture::Action>::const_iterator i = fixture.actions.begin(); i != fixture.actions.end(); ++i) {
 			switch(i->cmd) {
 			case 'A':
 				allData.insert(i->data);
 				mtree.add(i->data);
+				break;
+			case 'R':
+				allData.erase(i->data);
+				mtree.remove(i->data);
 				break;
 			default:
 				cerr << i->cmd << endl;
@@ -97,9 +86,6 @@ private:
 			_checkNearestByRange(i->queryData, i->radius);
 			_checkNearestByLimit(i->queryData, i->limit);
 		}
-
-
-		assert(!"IMPLEMENTED");
 	}
 
 
