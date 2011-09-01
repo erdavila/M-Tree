@@ -1,0 +1,5 @@
+M-Tree
+*.o
+*.mk
+*.d
+makefile
