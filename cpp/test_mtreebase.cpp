@@ -55,6 +55,7 @@ public:
 
 	void test01() { _test("f01"); }
 	void test02() { _test("f02"); }
+	void test03() { _test("f03"); }
 
 private:
 	typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
@@ -184,6 +185,7 @@ int main() {
 	Test().testEmpty();
 	Test().test01();
 	Test().test02();
+	Test().test03();
 
 	cout << "OK" << endl;
 	return 0;
