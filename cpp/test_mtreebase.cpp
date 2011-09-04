@@ -54,8 +54,11 @@ public:
 	}
 
 	void test01() { _test("f01"); }
+	void test02() { _test("f02"); }
 
 private:
+	typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
+
 	MTreeBaseTest mtree;
 	set<Data> allData;
 
@@ -90,8 +93,6 @@ private:
 
 
 	void _checkNearestByRange(const Data& queryData, double radius) const {
-		typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
-
 		ResultsVector results;
 		set<Data> strippedResults;
 		MTreeBaseTest::ResultsIterator i = mtree.getNearestByRange(queryData, radius);
@@ -128,8 +129,6 @@ private:
 
 
 	void _checkNearestByLimit(const Data& queryData, unsigned int limit) const {
-		typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
-
 		ResultsVector results;
 		set<Data> strippedResults;
 		MTreeBaseTest::ResultsIterator i = mtree.getNearestByLimit(queryData, limit);
@@ -184,6 +183,7 @@ private:
 int main() {
 	Test().testEmpty();
 	Test().test01();
+	Test().test02();
 
 	cout << "OK" << endl;
 	return 0;

@@ -17,7 +17,10 @@ private:
 	class Node;
 	class Entry;
 
+
 	// Exception classes
+	class SplitNodeReplacement {};
+
 	class RootNodeReplacement {
 	public:
 		Node* newRoot;
@@ -25,6 +28,7 @@ private:
 	};
 
 	class NodeUnderCapacity { };
+
 
 public:
 
@@ -222,11 +226,12 @@ public:
 
 		bool prepareNextNearest() {
 			if(!nearestQueue.empty()) {
-				const ItemWithDistances<Entry>& nextNearest = nearestQueue.top();
+				ItemWithDistances<Entry> nextNearest = nearestQueue.top();
 				if(nextNearest.distance <= nextPendingMinDistance) {
 					nearestQueue.pop();
 					currentResultItem.data = nextNearest.item->data;
 					currentResultItem.distance = nextNearest.distance;
+					++yieldedCount;
 					return true;
 				}
 			}
@@ -274,19 +279,20 @@ public:
 			root = new RootLeafNode(data);
 			root->addData(data, 0, this);
 		} else {
-			assert(!"IMPLEMENTED");
-			/*
-			distance = self.distance_function(data, self.root.data)
-			try:
-				self.root.add_data(data, distance, self)
-			except _SplitNodeReplacement as e:
+			double distance = distanceFunction(data, root->data);
+			try {
+				root->addData(data, distance, this);
+			} catch(SplitNodeReplacement e) {
+				assert(!"IMPLEMENTED");
+				/*
 				assert len(e.new_nodes) == 2
 				self.root = _RootNode(self.root.data)
 				for new_node in e.new_nodes:
 					distance = self.distance_function(self.root.data, new_node.data)
 					self.root.add_child(new_node, distance, self)
 
-			 */
+				 */
+			}
 		}
 	}
 
@@ -401,7 +407,7 @@ private:
 			assert(!"IMPLEMENTED");
 		}
 
-		void addData(const T& data, double distance, const MTreeBase* mtree) {
+		void addData(const T& data, double distance, const MTreeBase* mtree) throw(SplitNodeReplacement) {
 			doAddData(data, distance, mtree);
 			checkMaxCapacity(mtree);
 		}
