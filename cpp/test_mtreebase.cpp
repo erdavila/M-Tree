@@ -182,12 +182,14 @@ private:
 
 
 int main() {
-	Test().testEmpty();
-	Test().test01();
-	Test().test02();
-	Test().test03();
+#define RUN_TEST(T)   cout << "Running " #T "..." << endl; Test().T()
+	RUN_TEST(testEmpty);
+	RUN_TEST(test01);
+	RUN_TEST(test02);
+	RUN_TEST(test03);
+#undef RUN_TEST
 
-	cout << "OK" << endl;
+	cout << "DONE" << endl;
 	return 0;
 }
 
