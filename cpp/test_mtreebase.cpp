@@ -41,7 +41,7 @@ protected:
 	virtual PromotedPair promotionFunction(const DataSet& dataSet, CachedDistanceFunction& cachedDistanceFunction) const {
 		std::vector<Data> dataObjects(dataSet.begin(), dataSet.end());
 		sort(dataObjects.begin(), dataObjects.end());
-		return PromotedPair(dataObjects.front(), dataObjects.back());
+		return {dataObjects.front(), dataObjects.back()};
 	}
 
 private:

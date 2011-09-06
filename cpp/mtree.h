@@ -24,19 +24,12 @@ private:
 	class SplitNodeReplacement {
 	public:
 		enum { NUM_NODES = 2 };
-
 		Node* newNodes[NUM_NODES];
-		SplitNodeReplacement(Node* newNodes[NUM_NODES]) {
-			for(int i = 0; i < NUM_NODES; ++i) {
-				this->newNodes[i] = newNodes[i];
-			}
-		}
 	};
 
 	class RootNodeReplacement {
 	public:
 		Node* newRoot;
-		RootNodeReplacement(Node* newRoot) : newRoot(newRoot) { }
 	};
 
 	class NodeUnderCapacity { };
@@ -48,7 +41,6 @@ public:
 	class DataNotFound {
 	public:
 		T data;
-		DataNotFound(const T& data) : data(data) {}
 	};
 
 
@@ -146,7 +138,7 @@ public:
 				{ }
 
 			bool operator<(const ItemWithDistances& that) const {
-				return this->minDistance > that.minDistance;
+				return (this->minDistance > that.minDistance);
 			}
 
 		};
@@ -377,11 +369,11 @@ public:
 	}
 
 	ResultsIterator getNearest(const T& queryData, double range, size_t limit) const {
-		return ResultsIterator(this, queryData, range, limit);
+		return {this, queryData, range, limit};
 	}
 
 	ResultsIterator resultsEnd() const {
-		return ResultsIterator();
+		return {};
 	}
 
 protected:
@@ -553,7 +545,7 @@ private:
 				}
 				assert(children.empty());
 
-				throw SplitNodeReplacement(newNodes);
+				throw SplitNodeReplacement{newNodes[0], newNodes[1]};
 			}
 
 		}
@@ -648,7 +640,7 @@ private:
 
 		void doRemoveData(const T& data, double distance, const MTreeBase* mtree) throw (DataNotFound) {
 			if(this->children.erase(data) == 0) {
-				throw DataNotFound(data);
+				throw DataNotFound{data};
 			}
 		}
 
@@ -873,7 +865,7 @@ private:
 				Node::removeData(data, distance, mtree);
 			} catch (NodeUnderCapacity) {
 				assert(this->children.empty());
-				throw RootNodeReplacement(NULL);
+				throw RootNodeReplacement{NULL};
 			}
 		}
 
@@ -915,7 +907,7 @@ private:
 				}
 				theChild->children.clear();
 
-				throw RootNodeReplacement(newRoot);
+				throw RootNodeReplacement{newRoot};
 			}
 		}
 
