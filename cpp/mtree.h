@@ -25,6 +25,12 @@ private:
 	public:
 		enum { NUM_NODES = 2 };
 		Node* newNodes[NUM_NODES];
+		SplitNodeReplacement(Node* newNodes[NUM_NODES]) {
+			for(int i = 0; i < NUM_NODES; ++i) {
+				this->newNodes[i] = newNodes[i];
+			}
+
+		}
 	};
 
 	class RootNodeReplacement {
@@ -545,7 +551,7 @@ private:
 				}
 				assert(children.empty());
 
-				throw SplitNodeReplacement{newNodes[0], newNodes[1]};
+				throw SplitNodeReplacement(newNodes);
 			}
 
 		}
@@ -667,12 +673,10 @@ private:
 				assert(child != NULL);
 				double distance = mtree->distanceFunction(child->data, data);
 				if(distance > child->radius) {
-					assert(!"IMPLEMENTED");
-					/*
-					radius_increase = distance - child.radius
-					if radius_increase < min_radius_increase_needed.metric:
-						min_radius_increase_needed = self.CandidateChild(child, distance, radius_increase)
-					*/
+					double radiusIncrease = distance - child->radius;
+					if(radiusIncrease < minRadiusIncreaseNeeded.metric) {
+						minRadiusIncreaseNeeded = { child, distance, radiusIncrease };
+					}
 				} else {
 					if(distance < nearestDistance.metric) {
 						nearestDistance = { child, distance, distance };
@@ -680,30 +684,25 @@ private:
 				}
 			}
 
-			CandidateChild chosen;
-			if(nearestDistance.node != NULL) {  // TODO: turn if into x?y:z
-				chosen = nearestDistance;
-			} else {
-				assert(!"IMPLEMENTED");
-				/*
-				chosen = min_radius_increase_needed
-				*/
-			}
+			CandidateChild chosen = (nearestDistance.node != NULL)
+			                      ? nearestDistance
+			                      : minRadiusIncreaseNeeded;
 
 			Node* child = chosen.node;
 			try {
 				child->addData(data, chosen.distance, mtree);
 				updateRadius(child);
 			} catch(SplitNodeReplacement e) {
-				assert(!"IMPLEMENTED");
-				/*
-				assert len(e.new_nodes) == 2
-				# Replace current child with new nodes
-				del self.children[child.data]
-				for new_child in e.new_nodes:
-					distance = mtree.distance_function(self.data, new_child.data)
-					self.add_child(new_child, distance, mtree)
-				*/
+				// Replace current child with new nodes
+				size_t _ = this->children.erase(child->data);
+				assert(_ == 1);
+				delete child;
+
+				for(int i = 0; i < e.NUM_NODES; ++i) {
+					Node* newChild = e.newNodes[i];
+					double distance = mtree->distanceFunction(this->data, newChild->data);
+					addChild(newChild, distance, mtree);
+				}
 			}
 		}
 
