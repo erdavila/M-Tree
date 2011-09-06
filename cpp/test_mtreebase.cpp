@@ -77,6 +77,7 @@ public:
 	void test20() { _test("f20"); }
 	void testLots() { _test("fLots"); }
 
+
 	void testRemoveNonExisting() {
 		// Empty
 		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
@@ -101,11 +102,11 @@ public:
 		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
 	}
 
+
+	void testGeneratedCase01() { _test("fG01"); }
+	void testGeneratedCase02() { _test("fG02"); }
+
 	/*
-
-	def testGeneratedCase01(self): self._test('fG01')
-	def testGeneratedCase02(self): self._test('fG02')
-
 
 	def testRandom(self):
 		fixtures_path, _ = os.path.split(fixtures.__file__)
@@ -296,6 +297,8 @@ int main() {
 	RUN_TEST(test20);
 	RUN_TEST(testLots);
 	RUN_TEST(testRemoveNonExisting);
+	RUN_TEST(testGeneratedCase01);
+	RUN_TEST(testGeneratedCase02);
 #undef RUN_TEST
 
 	cout << "DONE" << endl;
