@@ -3,7 +3,7 @@ import sys
 import os.path
 
 
-sys.path.append(os.path.abspath("../MTree"))
+sys.path.append(os.path.abspath("py"))
 
 
 def main():

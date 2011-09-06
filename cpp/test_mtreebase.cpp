@@ -12,6 +12,7 @@
 #define assertLessEqual(A, B)         assert(A <= B);
 #define assertIn(ELEM, CONTAINER)     assert(CONTAINER.find(ELEM) != CONTAINER.end());
 #define assertNotIn(ELEM, CONTAINER)  assert(CONTAINER.find(ELEM) == CONTAINER.end());
+#define assertRaises(EX, CODE)        try{CODE;assert(false);}catch(EX){}
 
 using namespace std;
 
@@ -28,7 +29,7 @@ public:
 		_check();
 	}
 
-	void remove(const Data& data) {
+	void remove(const Data& data) throw (DataNotFound) {
 		MTreeBase<Data>::remove(data);
 		_check();
 	}
@@ -38,10 +39,11 @@ public:
 	}
 
 protected:
-	void promotionFunction() const;
-
-private:
-
+	virtual PromotedPair promotionFunction(const DataSet& dataSet, CachedDistanceFunction& cachedDistanceFunction) const {
+		std::vector<Data> dataObjects(dataSet.begin(), dataSet.end());
+		sort(dataObjects.begin(), dataObjects.end());
+		return {dataObjects.front(), dataObjects.back()};
+	}
 };
 
 
@@ -54,8 +56,75 @@ public:
 	}
 
 	void test01() { _test("f01"); }
+	void test02() { _test("f02"); }
+	void test03() { _test("f03"); }
+	void test04() { _test("f04"); }
+	void test05() { _test("f05"); }
+	void test06() { _test("f06"); }
+	void test07() { _test("f07"); }
+	void test08() { _test("f08"); }
+	void test09() { _test("f09"); }
+	void test10() { _test("f10"); }
+	void test11() { _test("f11"); }
+	void test12() { _test("f12"); }
+	void test13() { _test("f13"); }
+	void test14() { _test("f14"); }
+	void test15() { _test("f15"); }
+	void test16() { _test("f16"); }
+	void test17() { _test("f17"); }
+	void test18() { _test("f18"); }
+	void test19() { _test("f19"); }
+	void test20() { _test("f20"); }
+	void testLots() { _test("fLots"); }
+
+
+	void testRemoveNonExisting() {
+		// Empty
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		// With some items
+		mtree.add({4, 44});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({95, 43});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({76, 21});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({64, 53});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({47, 3});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({26, 11});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+	}
+
+
+	void testGeneratedCase01() { _test("fG01"); }
+	void testGeneratedCase02() { _test("fG02"); }
+
+	void testNotRandom() {
+		/*
+		 * To generate a random test, execute the following commands:
+		 * 		py/mtree/tests/fixtures/generator.py -a500 -r0.2 > py/mtree/tests/fixtures/fNotRandom.py
+		 * 		cpp/convert-fixture-to-cpp.py fNotRandom > cpp/tests/fixtures/fNotRandom.txt
+		 */
+
+		const string fixtureName = "fNotRandom";
+		string fixtureFileName = Fixture::path(fixtureName);
+		if(!ifstream(fixtureFileName)) {
+			cout << "\tskipping..." << endl;
+			return;
+		}
+		_test(fixtureName.c_str());
+	}
 
 private:
+	typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
+
 	MTreeBaseTest mtree;
 	set<Data> allData;
 
@@ -67,26 +136,15 @@ private:
 
 
 	void _testFixture(const Fixture& fixture) {
-		/*
-		cout << fixture.dimensions << endl;
-		for(vector<Fixture::Action>::const_iterator i = fixture.actions.begin(); i != fixture.actions.end(); ++i) {
-			cout << i->cmd;
-			for(size_t d = 0; d < fixture.dimensions; d++) {
-				cout << " " << i->data[d];
-			}
-			for(size_t d = 0; d < fixture.dimensions; d++) {
-				cout << " " << i->queryData[d];
-			}
-			cout << " " << i->radius << " " << i->limit << endl;
-
-		}
-		*/
-
 		for(vector<Fixture::Action>::const_iterator i = fixture.actions.begin(); i != fixture.actions.end(); ++i) {
 			switch(i->cmd) {
 			case 'A':
 				allData.insert(i->data);
 				mtree.add(i->data);
+				break;
+			case 'R':
+				allData.erase(i->data);
+				mtree.remove(i->data);
 				break;
 			default:
 				cerr << i->cmd << endl;
@@ -97,15 +155,10 @@ private:
 			_checkNearestByRange(i->queryData, i->radius);
 			_checkNearestByLimit(i->queryData, i->limit);
 		}
-
-
-		assert(!"IMPLEMENTED");
 	}
 
 
 	void _checkNearestByRange(const Data& queryData, double radius) const {
-		typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
-
 		ResultsVector results;
 		set<Data> strippedResults;
 		MTreeBaseTest::ResultsIterator i = mtree.getNearestByRange(queryData, radius);
@@ -122,7 +175,7 @@ private:
 			assertLessEqual(previousDistance, i->distance);
 			previousDistance = i->distance;
 
-			// Check if every item in the results came from the generated query_data
+			// Check if every item in the results came from the generated queryData
 			assertIn(i->data, allData);
 
 			// Check if every item in the results is within the range
@@ -142,8 +195,6 @@ private:
 
 
 	void _checkNearestByLimit(const Data& queryData, unsigned int limit) const {
-		typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
-
 		ResultsVector results;
 		set<Data> strippedResults;
 		MTreeBaseTest::ResultsIterator i = mtree.getNearestByLimit(queryData, limit);
@@ -167,7 +218,7 @@ private:
 			assertLessEqual(previousDistance, i->distance);
 			previousDistance = i->distance;
 
-			// Check if every item in the results came from the generated query_data
+			// Check if every item in the results came from the generated queryData
 			assertIn(i->data, allData);
 
 			// Check if items are not repeated
@@ -196,125 +247,35 @@ private:
 
 
 int main() {
-	Test().testEmpty();
-	Test().test01();
+#define RUN_TEST(T)   cout << "Running " #T "..." << endl; Test().T()
+	RUN_TEST(testEmpty);
+	RUN_TEST(test01);
+	RUN_TEST(test02);
+	RUN_TEST(test03);
+	RUN_TEST(test04);
+	RUN_TEST(test05);
+	RUN_TEST(test06);
+	RUN_TEST(test07);
+	RUN_TEST(test08);
+	RUN_TEST(test09);
+	RUN_TEST(test10);
+	RUN_TEST(test11);
+	RUN_TEST(test12);
+	RUN_TEST(test13);
+	RUN_TEST(test14);
+	RUN_TEST(test15);
+	RUN_TEST(test16);
+	RUN_TEST(test17);
+	RUN_TEST(test18);
+	RUN_TEST(test19);
+	RUN_TEST(test20);
+	RUN_TEST(testLots);
+	RUN_TEST(testRemoveNonExisting);
+	RUN_TEST(testGeneratedCase01);
+	RUN_TEST(testGeneratedCase02);
+	RUN_TEST(testNotRandom);
+#undef RUN_TEST
 
-	cout << "OK" << endl;
+	cout << "DONE" << endl;
 	return 0;
 }
-
-
-/*
-
-class Test(unittest.TestCase):
-
-	def setUp(self):
-
-		# Removing randomness
-		def not_random_promotion(data_objects, distance_function):
-			data_objects = sorted(data_objects)
-			return data_objects[0], data_objects[-1]
-
-
-		self.mtree = MTreeBase(
-				min_node_capacity=2,
-				max_node_capacity=3,
-				split_function=f.make_split_function(not_random_promotion, f.balanced_partition)
-			)
-
-
-
-
-
-	def test01(self):  self._test('f01')
-	def test02(self):  self._test('f02')
-	def test03(self):  self._test('f03')
-	def test04(self):  self._test('f04')
-	def test05(self):  self._test('f05')
-	def test06(self):  self._test('f06')
-	def test07(self):  self._test('f07')
-	def test08(self):  self._test('f08')
-	def test09(self):  self._test('f09')
-	def test10(self):  self._test('f10')
-	def test11(self):  self._test('f11')
-	def test12(self):  self._test('f12')
-	def test13(self):  self._test('f13')
-	def test14(self):  self._test('f14')
-	def test15(self):  self._test('f15')
-	def test16(self):  self._test('f16')
-	def test17(self):  self._test('f17')
-	def test18(self):  self._test('f18')
-	def test19(self):  self._test('f19')
-	def test20(self):  self._test('f20')
-
-	def testLots(self):  self._test('fLots')
-
-
-	def testRemoveNonExisting(self):
-		# Empty
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		# With some items
-		self.mtree.add((4, 44))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((95, 43))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((76, 21))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((64, 53))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((47, 3))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((26, 11))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-
-	def testGeneratedCase01(self): self._test('fG01')
-	def testGeneratedCase02(self): self._test('fG02')
-
-
-	def testRandom(self):
-		fixtures_path, _ = os.path.split(fixtures.__file__)
-		random_test_path = os.path.join(fixtures_path, 'fRandom.py')
-
-		if os.path.isfile(random_test_path):
-			print >>sys.stderr, "WARNING: Using previously generated random test (fRandom)."
-			generated = False
-		else:
-			# Random test doesn't exist. Generate it
-			options = generator.Options(actions=500, dimensions=3, remove_chance=0.2)
-			fixture = generator.generate_test_data(options)
-			f = file(random_test_path, 'w')
-			stdout_bkp = sys.stdout
-			sys.stdout = f
-			try:
-				print "# Test case generated by testRandom()."
-				generator.print_test_data(fixture, options)
-			finally:
-				sys.stdout = stdout_bkp
-			f.close()
-			generated = True
-
-
-		try:
-			self._test('fRandom')
-		except:
-			print >>sys.stderr, "WARNING: The random test (fRandom) failed."
-			print >>sys.stderr, "Investigate it, fix MTreeBase and then convert"
-			print >>sys.stderr, "the random test to a permanent test case."
-			raise
-		else:
-			if generated:
-				os.remove(random_test_path)
-				os.remove(random_test_path + 'c')
-			else:
-				print >>sys.stderr, "ATTENTION: The previously existing random test"
-				print >>sys.stderr, "has passed. Do want to delete it or convert to"
-				print >>sys.stderr, "a permanent test case?"
- */
-

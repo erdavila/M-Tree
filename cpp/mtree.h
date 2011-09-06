@@ -5,6 +5,8 @@
 #include <limits>
 #include <map>
 #include <queue>
+#include <utility>
+#include "functions.h"
 
 
 namespace mtree {
@@ -17,7 +19,36 @@ private:
 	class Node;
 	class Entry;
 
+
+	// Exception classes
+	class SplitNodeReplacement {
+	public:
+		enum { NUM_NODES = 2 };
+		Node* newNodes[NUM_NODES];
+		SplitNodeReplacement(Node* newNodes[NUM_NODES]) {
+			for(int i = 0; i < NUM_NODES; ++i) {
+				this->newNodes[i] = newNodes[i];
+			}
+
+		}
+	};
+
+	class RootNodeReplacement {
+	public:
+		Node* newRoot;
+	};
+
+	class NodeUnderCapacity { };
+
+
 public:
+
+	// Public exception
+	class DataNotFound {
+	public:
+		T data;
+	};
+
 
 	class ResultItem {
 	public:
@@ -113,7 +144,7 @@ public:
 				{ }
 
 			bool operator<(const ItemWithDistances& that) const {
-				return this->minDistance > that.minDistance;
+				return (this->minDistance > that.minDistance);
 			}
 
 		};
@@ -213,11 +244,12 @@ public:
 
 		bool prepareNextNearest() {
 			if(!nearestQueue.empty()) {
-				const ItemWithDistances<Entry>& nextNearest = nearestQueue.top();
+				ItemWithDistances<Entry> nextNearest = nearestQueue.top();
 				if(nextNearest.distance <= nextPendingMinDistance) {
 					nearestQueue.pop();
 					currentResultItem.data = nextNearest.item->data;
 					currentResultItem.distance = nextNearest.distance;
+					++yieldedCount;
 					return true;
 				}
 			}
@@ -237,6 +269,41 @@ public:
 		size_t yieldedCount;
 		ResultItem currentResultItem;
 	};
+
+
+
+	class CachedDistanceFunction {
+	public:
+		CachedDistanceFunction(const MTreeBase* mtree) : mtree(mtree) {}
+
+		double operator()(const T& data1, const T& data2) {
+			typename CacheType::iterator i = cache.find(make_pair(data1, data2));
+			if(i != cache.end()) {
+				return i->second;
+			}
+
+			i = cache.find(make_pair(data2, data1));
+			if(i != cache.end()) {
+				return i->second;
+			}
+
+			// Not found in cache
+			double distance = mtree->distanceFunction(data1, data2);
+
+			// Store in cache
+			cache.insert(make_pair(make_pair(data1, data2), distance));
+			cache.insert(make_pair(make_pair(data2, data1), distance));
+
+			return distance;
+		}
+
+	private:
+		typedef std::map<std::pair<T, T>, double> CacheType;
+
+		const MTreeBase* mtree;
+		CacheType cache;
+	};
+
 
 
 	MTreeBase(size_t minNodeCapacity=50, size_t maxNodeCapacity=-1)
@@ -265,23 +332,37 @@ public:
 			root = new RootLeafNode(data);
 			root->addData(data, 0, this);
 		} else {
-			assert(!"IMPLEMENTED");
-			/*
-			distance = self.distance_function(data, self.root.data)
-			try:
-				self.root.add_data(data, distance, self)
-			except _SplitNodeReplacement as e:
-				assert len(e.new_nodes) == 2
-				self.root = _RootNode(self.root.data)
-				for new_node in e.new_nodes:
-					distance = self.distance_function(self.root.data, new_node.data)
-					self.root.add_child(new_node, distance, self)
-
-			 */
+			double distance = distanceFunction(data, root->data);
+			try {
+				root->addData(data, distance, this);
+			} catch(SplitNodeReplacement& e) {
+				Node* newRoot = new RootNode(root->data);
+				delete root;
+				root = newRoot;
+				for(int i = 0; i < SplitNodeReplacement::NUM_NODES; ++i) {
+					Node* newNode = e.newNodes[i];
+					double distance = distanceFunction(root->data, newNode->data);
+					root->addChild(newNode, distance, this);
+				}
+			}
 		}
 	}
 
-	void remove(const T& data);
+
+	void remove(const T& data) throw (DataNotFound) {
+		if(root == NULL) {
+			throw DataNotFound{data};
+		}
+
+		double distanceToRoot = distanceFunction(data, root->data);
+		try {
+			root->removeData(data, distanceToRoot, this);
+		} catch(RootNodeReplacement e) {
+			delete root;
+			root = e.newRoot;
+		}
+	}
+
 
 	ResultsIterator getNearestByRange(const T& queryData, double range) const {
 		return getNearest(queryData, range, std::numeric_limits<unsigned int>::max());
@@ -292,26 +373,33 @@ public:
 	}
 
 	ResultsIterator getNearest(const T& queryData, double range, size_t limit) const {
-		return ResultsIterator(this, queryData, range, limit);
+		return {this, queryData, range, limit};
 	}
 
 	ResultsIterator resultsEnd() const {
-		return ResultsIterator();
+		return {};
 	}
 
 protected:
 	virtual double distanceFunction(const T&, const T&) const = 0;
 
-	virtual double splitFunction() {
-		assert(!"IMPLEMENTED");
+	typedef std::pair<T, T> PromotedPair;
+	typedef std::set<T> DataSet;
+	typedef std::set<T> Partition;
+
+
+	virtual PromotedPair splitFunction(Partition& firstPartition, Partition& secondPartition, CachedDistanceFunction& cachedDistanceFunction) const {
+		PromotedPair promoted = promotionFunction(firstPartition, cachedDistanceFunction);
+		partitionFunction(promoted, firstPartition, secondPartition, cachedDistanceFunction);
+		return promoted;
 	}
 
-	virtual double promotionFunction() {
-		assert(!"IMPLEMENTED");
+	virtual PromotedPair promotionFunction(const DataSet& dataSet, CachedDistanceFunction& cachedDistanceFunction) const {
+		return mtree::functions::randomPromotion(dataSet, cachedDistanceFunction);
 	}
 
-	virtual double partitionFunction() {
-		assert(!"IMPLEMENTED");
+	virtual void partitionFunction(const PromotedPair& promoted, Partition& firstPartition, Partition& secondPartition, CachedDistanceFunction& cachedDistanceFunction) const {
+		return mtree::functions::balancedPartition(promoted, firstPartition, secondPartition, cachedDistanceFunction);
 	}
 
 	void _check() const {
@@ -374,10 +462,13 @@ private:
 	class Node : public IndexItem {
 	public:
 		virtual ~Node() {
-			assert(!"IMPLEMENTED");
+			for(typename ChildrenMap::iterator i = children.begin(); i != children.end(); ++i) {
+				IndexItem* child = i->second;
+				delete child;
+			}
 		}
 
-		void addData(const T& data, double distance, MTreeBase* mtree) {
+		void addData(const T& data, double distance, const MTreeBase* mtree) throw(SplitNodeReplacement) {
 			doAddData(data, distance, mtree);
 			checkMaxCapacity(mtree);
 		}
@@ -424,42 +515,62 @@ private:
 		Node& operator=(const Node&) = delete; // TODO: confirm if really delete
 		Node& operator=(Node&&) = delete; // TODO: confirm if really delete
 
-		virtual void doAddData(const T& data, double distance, MTreeBase* mtree) = 0;
+		virtual void doAddData(const T& data, double distance, const MTreeBase* mtree) = 0;
 
-		void checkMaxCapacity(MTreeBase* mtree) {
+		virtual void doRemoveData(const T& data, double distance, const MTreeBase* mtree) throw (DataNotFound) = 0;
+
+	public:
+		void checkMaxCapacity(const MTreeBase* mtree) throw (SplitNodeReplacement) {
 			if(children.size() > mtree->maxNodeCapacity) {
-				assert(!"IMPLEMENTED");
-				/*
-				data_objects = frozenset(self.children.iterkeys())
-				cached_distance_function = functions.make_cached_distance_function(mtree.distance_function)
+				Partition firstPartition;
+				for(typename ChildrenMap::iterator i = children.begin(); i != children.end(); ++i) {
+					firstPartition.insert(i->first);
+				}
 
-				(promoted_data1, partition1,
-				 promoted_data2, partition2) = mtree.split_function(data_objects, cached_distance_function)
+				CachedDistanceFunction cachedDistanceFunction(mtree);
 
-				split_node_replacement_class = self.get_split_node_replacement_class()
-				new_nodes = []
-				for promoted_data, partition in [(promoted_data1, partition1),
-												 (promoted_data2, partition2)]:
-					new_node = split_node_replacement_class(promoted_data)
-					for data in partition:
-						child = self.children[data]
-						distance = cached_distance_function(promoted_data, data)
-						new_node.add_child(child, distance, mtree)
-					new_nodes.append(new_node)
+				Partition secondPartition;
+				PromotedPair promoted = mtree->splitFunction(firstPartition, secondPartition, cachedDistanceFunction);
 
-				raise _SplitNodeReplacement(new_nodes)
-				*/
+				Node* newNodes[2];
+				for(int i = 0; i < 2; ++i) {
+					T& promotedData      = (i == 0) ? promoted.first : promoted.second;
+					Partition& partition = (i == 0) ? firstPartition : secondPartition;
+
+					Node* newNode = newSplitNodeReplacement(promotedData);
+					for(typename Partition::iterator j = partition.begin(); j != partition.end(); ++j) {
+						const T& data = *j;
+						IndexItem* child = children[data];
+						children.erase(data);
+						double distance = cachedDistanceFunction(promotedData, data);
+						newNode->addChild(child, distance, mtree);
+					}
+
+					newNodes[i] = newNode;
+				}
+				assert(children.empty());
+
+				throw SplitNodeReplacement(newNodes);
 			}
 
 		}
 
-		/*
-		def remove_data(self, data, distance, mtree):
-			self.do_remove_data(data, distance, mtree)
-			if len(self.children) < self.get_min_capacity(mtree):
-				raise _NodeUnderCapacity()
-		*/
+	protected:
+		virtual Node* newSplitNodeReplacement(const T&) const = 0;
 
+	public:
+		virtual void addChild(IndexItem* child, double distance, const MTreeBase* mtree) = 0;
+
+		virtual void removeData(const T& data, double distance, const MTreeBase* mtree) throw (RootNodeReplacement, NodeUnderCapacity, DataNotFound) {
+			doRemoveData(data, distance, mtree);
+			if(children.size() < getMinCapacity(mtree)) {
+				throw NodeUnderCapacity();
+			}
+		}
+
+		virtual size_t getMinCapacity(const MTreeBase* mtree) const = 0;
+
+	protected:
 		void updateMetrics(IndexItem* child, double distance) {
 			child->distanceToParent = distance;
 			updateRadius(child);
@@ -484,7 +595,13 @@ private:
 		void _checkChildMetrics(IndexItem* child, const MTreeBase* mtree) const {
 			double dist = mtree->distanceFunction(child->data, this->data);
 			assert(child->distanceToParent == dist);
-			assert(child->distanceToParent + child->radius <= this->radius);
+
+			/* TODO: investigate why the following line
+			 * 		assert(child->distanceToParent + child->radius <= this->radius);
+			 * is not the same as the code below:
+			 */
+			double sum = child->distanceToParent + child->radius;
+			assert(sum <= this->radius);
 		}
 	};
 
@@ -496,8 +613,19 @@ private:
 	};
 
 
+	class NonRootNodeTrait : public virtual Node {
+		size_t getMinCapacity(const MTreeBase* mtree) const {
+			return mtree->minNodeCapacity;
+		}
+
+		void _checkMinCapacity(const MTreeBase* mtree) const {
+			assert(this->children.size() >= mtree->minNodeCapacity);
+		}
+	};
+
+
 	class LeafNodeTrait : public virtual Node {
-		void doAddData(const T& data, double distance, MTreeBase* mtree) {
+		void doAddData(const T& data, double distance, const MTreeBase* mtree) {
 			Entry* entry = new Entry(data);
 			assert(this->children.find(data) == this->children.end());
 			this->children[data] = entry;
@@ -505,21 +633,23 @@ private:
 			updateMetrics(entry, distance);
 		}
 
-		/*
-		def add_child(self, child, distance, mtree):
-			assert child.data not in self.children
-			self.children[child.data] = child
-			assert child.data in self.children
-			self.update_metrics(child, distance)
+		void addChild(IndexItem* child, double distance, const MTreeBase* mtree) {
+			assert(this->children.find(child->data) == this->children.end());
+			this->children[child->data] = child;
+			assert(this->children.find(child->data) != this->children.end());
+			updateMetrics(child, distance);
+		}
 
-		@staticmethod
-		def get_split_node_replacement_class():
-			return _LeafNode
+		Node* newSplitNodeReplacement(const T& data) const {
+			return new LeafNode(data);
+		}
 
-		def do_remove_data(self, data, distance, mtree):
-			del self.children[data]
+		void doRemoveData(const T& data, double distance, const MTreeBase* mtree) throw (DataNotFound) {
+			if(this->children.erase(data) == 0) {
+				throw DataNotFound{data};
+			}
+		}
 
-		*/
 
 		void _checkChildClass(IndexItem* child) const {
 			assert(dynamic_cast<Entry*>(child) != NULL);
@@ -527,26 +657,281 @@ private:
 	};
 
 
+	class NonLeafNodeTrait : public virtual Node {
+		void doAddData(const T& data, double distance, const MTreeBase* mtree) {
+			struct CandidateChild {
+				Node* node;
+				double distance;
+				double metric;
+			};
+
+			CandidateChild minRadiusIncreaseNeeded = { NULL, -1.0, std::numeric_limits<double>::infinity() };
+			CandidateChild nearestDistance         = { NULL, -1.0, std::numeric_limits<double>::infinity() };
+
+			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
+				Node* child = dynamic_cast<Node*>(i->second);
+				assert(child != NULL);
+				double distance = mtree->distanceFunction(child->data, data);
+				if(distance > child->radius) {
+					double radiusIncrease = distance - child->radius;
+					if(radiusIncrease < minRadiusIncreaseNeeded.metric) {
+						minRadiusIncreaseNeeded = { child, distance, radiusIncrease };
+					}
+				} else {
+					if(distance < nearestDistance.metric) {
+						nearestDistance = { child, distance, distance };
+					}
+				}
+			}
+
+			CandidateChild chosen = (nearestDistance.node != NULL)
+			                      ? nearestDistance
+			                      : minRadiusIncreaseNeeded;
+
+			Node* child = chosen.node;
+			try {
+				child->addData(data, chosen.distance, mtree);
+				updateRadius(child);
+			} catch(SplitNodeReplacement e) {
+				// Replace current child with new nodes
+				size_t _ = this->children.erase(child->data);
+				assert(_ == 1);
+				delete child;
+
+				for(int i = 0; i < e.NUM_NODES; ++i) {
+					Node* newChild = e.newNodes[i];
+					double distance = mtree->distanceFunction(this->data, newChild->data);
+					addChild(newChild, distance, mtree);
+				}
+			}
+		}
+
+
+		void addChild(IndexItem* newChild_, double distance, const MTreeBase* mtree) {
+			Node* newChild = dynamic_cast<Node*>(newChild_);
+			assert(newChild != NULL);
+
+			struct ChildWithDistance {
+				Node* child;
+				double distance;
+			};
+
+			std::vector<ChildWithDistance> newChildren;
+			newChildren.push_back(ChildWithDistance{newChild, distance});
+
+			while(!newChildren.empty()) {
+				ChildWithDistance cwd = newChildren.back();
+				newChildren.pop_back();
+
+				newChild = cwd.child;
+				distance = cwd.distance;
+				typename Node::ChildrenMap::iterator i = this->children.find(newChild->data);
+				if(i == this->children.end()) {
+					this->children[newChild->data] = newChild;
+					updateMetrics(newChild, distance);
+				} else {
+					Node* existingChild = dynamic_cast<Node*>(this->children[newChild->data]);
+					assert(existingChild != NULL);
+					assert(existingChild->data == newChild->data);
+
+					// Transfer the _children_ of the newChild to the existingChild
+					for(typename Node::ChildrenMap::iterator i = newChild->children.begin(); i != newChild->children.end(); ++i) {
+						IndexItem* grandchild = i->second;
+						existingChild->addChild(grandchild, grandchild->distanceToParent, mtree);
+					}
+					newChild->children.clear();
+					delete newChild;
+
+					try {
+						existingChild->checkMaxCapacity(mtree);
+					} catch(SplitNodeReplacement e) {
+						size_t _ = this->children.erase(existingChild->data);
+						assert(_ == 1);
+						delete existingChild;
+
+						for(int i = 0; i < e.NUM_NODES; ++i) {
+							Node* newNode = e.newNodes[i];
+							double distance = mtree->distanceFunction(this->data, newNode->data);
+							newChildren.push_back(ChildWithDistance{newNode, distance});
+						}
+					}
+				}
+			}
+		}
+
+
+		Node* newSplitNodeReplacement(const T& data) const {
+			return new InternalNode(data);
+		}
+
+
+		void doRemoveData(const T& data, double distance, const MTreeBase* mtree) throw (DataNotFound) {
+			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
+				Node* child = dynamic_cast<Node*>(i->second);
+				assert(child != NULL);
+				if(abs(distance - child->distanceToParent) <= child->radius) {
+					double distanceToChild = mtree->distanceFunction(data, child->data);
+					if(distanceToChild <= child->radius) {
+						try {
+							child->removeData(data, distanceToChild, mtree);
+							updateRadius(child);
+							return;
+						} catch(DataNotFound) {
+							// If DataNotFound was thrown, then the data was not found in the child
+						} catch(NodeUnderCapacity) {
+							Node* expandedChild = balanceChildren(child, mtree);
+							updateRadius(expandedChild);
+							return;
+						}
+					}
+				}
+			}
+
+			throw DataNotFound{data};
+		}
+
+
+		Node* balanceChildren(Node* theChild, const MTreeBase* mtree) {
+			// Tries to find anotherChild which can donate a grand-child to theChild.
+
+			Node* nearestDonor = NULL;
+			double distanceNearestDonor = std::numeric_limits<double>::infinity();
+
+			Node* nearestMergeCandidate = NULL;
+			double distanceNearestMergeCandidate = std::numeric_limits<double>::infinity();
+
+			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
+				Node* anotherChild = dynamic_cast<Node*>(i->second);
+				assert(anotherChild != NULL);
+				if(anotherChild == theChild) continue;
+
+				double distance = mtree->distanceFunction(theChild->data, anotherChild->data);
+				if(anotherChild->children.size() > anotherChild->getMinCapacity(mtree)) {
+					if(distance < distanceNearestDonor) {
+						distanceNearestDonor = distance;
+						nearestDonor = anotherChild;
+					}
+				} else {
+					if(distance < distanceNearestMergeCandidate) {
+						distanceNearestMergeCandidate = distance;
+						nearestMergeCandidate = anotherChild;
+					}
+				}
+			}
+
+			if(nearestDonor == NULL) {
+				// Merge
+				for(typename Node::ChildrenMap::iterator i = theChild->children.begin(); i != theChild->children.end(); ++i) {
+					IndexItem* grandchild = i->second;
+					double distance = mtree->distanceFunction(grandchild->data, nearestMergeCandidate->data);
+					nearestMergeCandidate->addChild(grandchild, distance, mtree);
+				}
+
+				theChild->children.clear();
+				this->children.erase(theChild->data);
+				delete theChild;
+				return nearestMergeCandidate;
+			} else {
+				// Donate
+				// Look for the nearest grandchild
+				IndexItem* nearestGrandchild;
+				double nearestGrandchildDistance = std::numeric_limits<double>::infinity();
+				for(typename Node::ChildrenMap::iterator i = nearestDonor->children.begin(); i != nearestDonor->children.end(); ++i) {
+					IndexItem* grandchild = i->second;
+					double distance = mtree->distanceFunction(grandchild->data, theChild->data);
+					if(distance < nearestGrandchildDistance) {
+						nearestGrandchildDistance = distance;
+						nearestGrandchild = grandchild;
+					}
+				}
+
+				size_t _ = nearestDonor->children.erase(nearestGrandchild->data);
+				assert(_ == 1);
+				theChild->addChild(nearestGrandchild, nearestGrandchildDistance, mtree);
+				return theChild;
+			}
+		}
+
+
+		void _checkChildClass(IndexItem* child) const {
+			assert(dynamic_cast<InternalNode*>(child) != NULL
+			   ||  dynamic_cast<LeafNode*>(child)     != NULL);
+		}
+	};
+
+
 	class RootLeafNode : public RootNodeTrait, public LeafNodeTrait {
 	public:
 		RootLeafNode(const T& data) : Node(data) { }
-		/*
 
-		def remove_data(self, data, distance, mtree):
-			try:
-				super(_RootLeafNode, self).remove_data(data, distance, mtree)
-			except _NodeUnderCapacity:
-				assert len(self.children) == 0
-				raise _RootNodeReplacement(None)
+		void removeData(const T& data, double distance, const MTreeBase* mtree) throw (RootNodeReplacement, DataNotFound) {
+			try {
+				Node::removeData(data, distance, mtree);
+			} catch (NodeUnderCapacity) {
+				assert(this->children.empty());
+				throw RootNodeReplacement{NULL};
+			}
+		}
 
-		@staticmethod
-		def get_min_capacity(mtree):
-			return 1
-		*/
+		size_t getMinCapacity(const MTreeBase* mtree) const {
+			return 1;
+		}
 
 		void _checkMinCapacity(const MTreeBase* mtree) const {
 			assert(this->children.size() >= 1);
 		}
+	};
+
+	class RootNode : public RootNodeTrait, public NonLeafNodeTrait {
+	public:
+		RootNode(const T& data) : Node(data) {}
+
+	private:
+		void removeData(const T& data, double distance, const MTreeBase* mtree) throw (RootNodeReplacement, NodeUnderCapacity, DataNotFound) {
+			try {
+				Node::removeData(data, distance, mtree);
+			} catch(NodeUnderCapacity) {
+				// Promote the only child to root
+				Node* theChild = dynamic_cast<Node*>(this->children.begin()->second);
+				Node* newRoot;
+				if(dynamic_cast<InternalNode*>(theChild) != NULL) {
+					newRoot = new RootNode(theChild->data);
+				} else {
+					assert(dynamic_cast<LeafNode*>(theChild) != NULL);
+					newRoot = new RootLeafNode(theChild->data);
+				}
+
+				for(typename Node::ChildrenMap::iterator i = theChild->children.begin(); i != theChild->children.end(); ++i) {
+					IndexItem* grandchild = i->second;
+					double distance = mtree->distanceFunction(newRoot->data, grandchild->data);
+					newRoot->addChild(grandchild, distance, mtree);
+				}
+				theChild->children.clear();
+
+				throw RootNodeReplacement{newRoot};
+			}
+		}
+
+
+		size_t getMinCapacity(const MTreeBase* mtree) const {
+			return 2;
+		}
+
+		void _checkMinCapacity(const MTreeBase* mtree) const {
+			assert(this->children.size() >= 2);
+		}
+	};
+
+
+	class InternalNode : public NonRootNodeTrait, public NonLeafNodeTrait {
+	public:
+		InternalNode(const T& data) : Node(data) { }
+	};
+
+
+	class LeafNode : public NonRootNodeTrait, public LeafNodeTrait {
+	public:
+		LeafNode(const T& data) : Node(data) { }
 	};
 
 
@@ -596,193 +981,19 @@ class _NodeUnderCapacity(Exception):
 class _RootNodeTrait(_Node):
 
 
-class _NonRootNodeTrait(_Node):
-
-	def get_min_capacity(self, mtree):
-		return mtree.min_node_capacity
-
-	def _check_min_capacity(self, mtree):
-		assert len(self.children) >= mtree.min_node_capacity
-
+class _NonRootNodeTrait(_Node)
 
 
 class _LeafNodeTrait(_Node):
 
 
-
-class _NonLeafNodeTrait(_Node):
-
-	CandidateChild = namedtuple('CandidateChild', 'node, distance, metric')
+class _NonLeafNodeTrait(_Node)
 
 
-	def do_add_data(self, data, distance, mtree):
-
-		min_radius_increase_needed = self.CandidateChild(None, None, _INFINITY)
-		nearest_distance = self.CandidateChild(None, None, _INFINITY)
-
-		for child in self.children.itervalues():
-			distance = mtree.distance_function(child.data, data)
-			if distance > child.radius:
-				radius_increase = distance - child.radius
-				if radius_increase < min_radius_increase_needed.metric:
-					min_radius_increase_needed = self.CandidateChild(child, distance, radius_increase)
-			else:
-				if distance < nearest_distance.metric:
-					nearest_distance = self.CandidateChild(child, distance, distance)
-
-		if nearest_distance.node is not None:
-			chosen = nearest_distance
-		else:
-			chosen = min_radius_increase_needed
-
-		child = chosen.node
-		try:
-			child.add_data(data, chosen.distance, mtree)
-		except _SplitNodeReplacement as e:
-			assert len(e.new_nodes) == 2
-			# Replace current child with new nodes
-			del self.children[child.data]
-			for new_child in e.new_nodes:
-				distance = mtree.distance_function(self.data, new_child.data)
-				self.add_child(new_child, distance, mtree)
-		else:
-			self.update_radius(child)
+class _RootNode(_RootNodeTrait, _NonLeafNodeTrait)
 
 
-	def add_child(self, new_child, distance, mtree):
-		new_children = [(new_child, distance)]
-		while new_children:
-			new_child, distance = new_children.pop()
-
-			if new_child.data not in self.children:
-				self.children[new_child.data] = new_child
-				self.update_metrics(new_child, distance)
-			else:
-				existing_child = self.children[new_child.data]
-				assert existing_child.data == new_child.data
-
-				# Transfer the _children_ of the new_child to the existing_child
-				for grandchild in new_child.children.itervalues():
-					existing_child.add_child(grandchild, grandchild.distance_to_parent, mtree)
-
-				try:
-					existing_child.check_max_capacity(mtree)
-				except _SplitNodeReplacement as e:
-					del self.children[new_child.data]
-					for new_node in e.new_nodes:
-						distance = mtree.distance_function(self.data, new_node.data)
-						new_children.append((new_node, distance))
-
-
-	@staticmethod
-	def get_split_node_replacement_class():
-		return _InternalNode
-
-
-	def do_remove_data(self, data, distance, mtree):
-		for child in self.children.itervalues():
-			if abs(distance - child.distance_to_parent) <= child.radius:   # TODO: confirm
-				distance_to_child = mtree.distance_function(data, child.data)
-				if distance_to_child <= child.radius:
-					try:
-						child.remove_data(data, distance_to_child, mtree)
-					except KeyError:
-						# If KeyError was raised, then the data was not found in the child
-						pass
-					except _NodeUnderCapacity:
-						expanded_child = self.balance_children(child, mtree)
-						self.update_radius(expanded_child)
-						return
-					else:
-						self.update_radius(child)
-						return
-		raise KeyError()
-
-
-	def balance_children(self, the_child, mtree):
-		# Tries to find another_child which can donate a grandchild to the_child.
-
-		nearest_donor = None
-		distance_nearest_donor = _INFINITY
-
-		nearest_merge_candidate = None
-		distance_nearest_merge_candidate = _INFINITY
-
-		for another_child in (child for child in self.children.itervalues() if child is not the_child):
-			distance = mtree.distance_function(the_child.data, another_child.data)
-			if len(another_child.children) > another_child.get_min_capacity(mtree):
-				if distance < distance_nearest_donor:
-					distance_nearest_donor = distance
-					nearest_donor = another_child
-			else:
-				if distance < distance_nearest_merge_candidate:
-					distance_nearest_merge_candidate = distance
-					nearest_merge_candidate = another_child
-
-		if nearest_donor is None:
-			# Merge
-			for grandchild in the_child.children.itervalues():
-				distance = mtree.distance_function(grandchild.data, nearest_merge_candidate.data)
-				nearest_merge_candidate.add_child(grandchild, distance, mtree)
-
-			del self.children[the_child.data]
-			return nearest_merge_candidate
-		else:
-			# Donate
-			# Look for the nearest grandchild
-			nearest_grandchild_distance = _INFINITY
-			for grandchild in nearest_donor.children.itervalues():
-				distance = mtree.distance_function(grandchild.data, the_child.data)
-				if distance < nearest_grandchild_distance:
-					nearest_grandchild_distance = distance
-					nearest_grandchild = grandchild
-
-			del nearest_donor.children[nearest_grandchild.data]
-			the_child.add_child(nearest_grandchild, nearest_grandchild_distance, mtree)
-			return the_child
-
-
-	@staticmethod
-	def _get_expected_child_class():
-		"""Called by _check_child_class"""
-		return (_InternalNode, _LeafNode)
-
-
-
-class _RootNode(_RootNodeTrait, _NonLeafNodeTrait):
-
-	def remove_data(self, data, distance, mtree):
-		try:
-			super(_RootNode, self).remove_data(data, distance, mtree)
-		except _NodeUnderCapacity:
-			# Promote the only child to root
-			(the_child,) = self.children.itervalues()
-			if isinstance(the_child, _InternalNode):
-				new_root_class = _RootNode
-			else:
-				assert isinstance(the_child, _LeafNode)
-				new_root_class = _RootLeafNode
-
-			new_root = new_root_class(the_child.data)
-			for grandchild in the_child.children.itervalues():
-				distance = mtree.distance_function(new_root.data, grandchild.data)
-				new_root.add_child(grandchild, distance, mtree)
-
-			raise _RootNodeReplacement(new_root)
-
-
-	@staticmethod
-	def get_min_capacity(mtree):
-		return 2
-
-	def _check_min_capacity(self, mtree):
-		assert len(self.children) >= 2
-
-
-
-class _InternalNode(_NonRootNodeTrait, _NonLeafNodeTrait):
-	pass
-
+class _InternalNode(_NonRootNodeTrait, _NonLeafNodeTrait)
 
 
 class _LeafNode(_NonRootNodeTrait, _LeafNodeTrait):
@@ -845,18 +1056,7 @@ class MTreeBase(object):
 		self.root = None
 
 
-	def remove(self, data):
-		"""
-		Removes an object from the index.
-		"""
-		if self.root is None:
-			raise KeyError()
-
-		distance_to_root = self.distance_function(data, self.root.data)
-		try:
-			self.root.remove_data(data, distance_to_root, self)
-		except _RootNodeReplacement as e:
-			self.root = e.new_root
+	def remove(self, data)
 
 
 	def get_nearest(self, query_data, range=_INFINITY, limit=_INFINITY):
