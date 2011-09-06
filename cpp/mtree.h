@@ -788,10 +788,8 @@ private:
 					}
 				}
 			}
-			assert(!"IMPLEMENTED");
-			/*
-			raise KeyError()
-			*/
+
+			throw DataNotFound{data};
 		}
 
 
