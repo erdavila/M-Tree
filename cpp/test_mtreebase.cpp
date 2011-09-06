@@ -38,7 +38,11 @@ public:
 	}
 
 protected:
-	void promotionFunction() const;
+	virtual PromotedPair promotionFunction(const DataSet& dataSet, CachedDistanceFunction& cachedDistanceFunction) const {
+		std::vector<Data> dataObjects(dataSet.begin(), dataSet.end());
+		sort(dataObjects.begin(), dataObjects.end());
+		return PromotedPair(dataObjects.front(), dataObjects.back());
+	}
 
 private:
 
@@ -56,6 +60,7 @@ public:
 	void test01() { _test("f01"); }
 	void test02() { _test("f02"); }
 	void test03() { _test("f03"); }
+	void test04() { _test("f04"); }
 
 private:
 	typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
@@ -110,7 +115,7 @@ private:
 			assertLessEqual(previousDistance, i->distance);
 			previousDistance = i->distance;
 
-			// Check if every item in the results came from the generated query_data
+			// Check if every item in the results came from the generated queryData
 			assertIn(i->data, allData);
 
 			// Check if every item in the results is within the range
@@ -187,6 +192,7 @@ int main() {
 	RUN_TEST(test01);
 	RUN_TEST(test02);
 	RUN_TEST(test03);
+	RUN_TEST(test04);
 #undef RUN_TEST
 
 	cout << "DONE" << endl;
