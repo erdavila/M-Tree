@@ -12,6 +12,7 @@
 #define assertLessEqual(A, B)         assert(A <= B);
 #define assertIn(ELEM, CONTAINER)     assert(CONTAINER.find(ELEM) != CONTAINER.end());
 #define assertNotIn(ELEM, CONTAINER)  assert(CONTAINER.find(ELEM) == CONTAINER.end());
+#define assertRaises(EX, CODE)        try{CODE;assert(false);}catch(EX){}
 
 using namespace std;
 
@@ -28,7 +29,7 @@ public:
 		_check();
 	}
 
-	void remove(const Data& data) {
+	void remove(const Data& data) throw (DataNotFound) {
 		MTreeBase<Data>::remove(data);
 		_check();
 	}
@@ -76,31 +77,31 @@ public:
 	void test20() { _test("f20"); }
 	void testLots() { _test("fLots"); }
 
+	void testRemoveNonExisting() {
+		// Empty
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		// With some items
+		mtree.add({4, 44});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({95, 43});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({76, 21});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({64, 53});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({47, 3});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+
+		mtree.add({26, 11});
+		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+	}
 
 	/*
-	def testRemoveNonExisting(self):
-		# Empty
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		# With some items
-		self.mtree.add((4, 44))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((95, 43))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((76, 21))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((64, 53))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((47, 3))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
-		self.mtree.add((26, 11))
-		self.assertRaises(KeyError, lambda: self.mtree.remove((99, 77)))
-
 
 	def testGeneratedCase01(self): self._test('fG01')
 	def testGeneratedCase02(self): self._test('fG02')
@@ -294,6 +295,7 @@ int main() {
 	RUN_TEST(test19);
 	RUN_TEST(test20);
 	RUN_TEST(testLots);
+	RUN_TEST(testRemoveNonExisting);
 #undef RUN_TEST
 
 	cout << "DONE" << endl;

@@ -349,9 +349,9 @@ public:
 	}
 
 
-	bool remove(const T& data) {
+	void remove(const T& data) throw (DataNotFound) {
 		if(root == NULL) {
-			return false;
+			throw DataNotFound{data};
 		}
 
 		double distanceToRoot = distanceFunction(data, root->data);
@@ -361,8 +361,6 @@ public:
 			delete root;
 			root = e.newRoot;
 		}
-
-		return true;
 	}
 
 
@@ -866,7 +864,7 @@ private:
 	public:
 		RootLeafNode(const T& data) : Node(data) { }
 
-		void removeData(const T& data, double distance, const MTreeBase* mtree) throw (RootNodeReplacement) {
+		void removeData(const T& data, double distance, const MTreeBase* mtree) throw (RootNodeReplacement, DataNotFound) {
 			try {
 				Node::removeData(data, distance, mtree);
 			} catch (NodeUnderCapacity) {
@@ -889,7 +887,7 @@ private:
 		RootNode(const T& data) : Node(data) {}
 
 	private:
-		void removeData(const T& data, double distance, const MTreeBase* mtree) throw (RootNodeReplacement, NodeUnderCapacity) {
+		void removeData(const T& data, double distance, const MTreeBase* mtree) throw (RootNodeReplacement, NodeUnderCapacity, DataNotFound) {
 			try {
 				Node::removeData(data, distance, mtree);
 			} catch(NodeUnderCapacity) {
