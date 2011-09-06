@@ -521,6 +521,7 @@ private:
 
 		virtual void doRemoveData(const T& data, double distance, const MTreeBase* mtree) throw (DataNotFound) = 0;
 
+	public:
 		void checkMaxCapacity(const MTreeBase* mtree) throw (SplitNodeReplacement) {
 			if(children.size() > mtree->maxNodeCapacity) {
 				Partition firstPartition;
@@ -556,6 +557,7 @@ private:
 
 		}
 
+	protected:
 		virtual Node* newSplitNodeReplacement(const T&) const = 0;
 
 	public:
@@ -707,15 +709,17 @@ private:
 		}
 
 
-		void addChild(IndexItem* newChild, double distance, const MTreeBase* mtree) {
+		void addChild(IndexItem* newChild_, double distance, const MTreeBase* mtree) {
+			Node* newChild = dynamic_cast<Node*>(newChild_);
+			assert(newChild != NULL);
+
 			struct ChildWithDistance {
-				IndexItem* child;
+				Node* child;
 				double distance;
-				ChildWithDistance(IndexItem* child, double distance) : child(child), distance(distance) {}
 			};
 
 			std::vector<ChildWithDistance> newChildren;
-			newChildren.push_back(ChildWithDistance(newChild, distance));
+			newChildren.push_back(ChildWithDistance{newChild, distance});
 
 			while(!newChildren.empty()) {
 				ChildWithDistance cwd = newChildren.back();
@@ -728,33 +732,38 @@ private:
 					this->children[newChild->data] = newChild;
 					updateMetrics(newChild, distance);
 				} else {
-					assert(!"IMPLEMENTED");
-					/*
-					existing_child = self.children[new_child.data]
-					assert existing_child.data == new_child.data
+					Node* existingChild = dynamic_cast<Node*>(this->children[newChild->data]);
+					assert(existingChild != NULL);
+					assert(existingChild->data == newChild->data);
 
-					# Transfer the _children_ of the new_child to the existing_child
-					for grandchild in new_child.children.itervalues():
-						existing_child.add_child(grandchild, grandchild.distance_to_parent, mtree)
+					// Transfer the _children_ of the newChild to the existingChild
+					for(typename Node::ChildrenMap::iterator i = newChild->children.begin(); i != newChild->children.end(); ++i) {
+						IndexItem* grandchild = i->second;
+						existingChild->addChild(grandchild, grandchild->distanceToParent, mtree);
+					}
+					newChild->children.clear();
+					delete newChild;
 
-					try:
-						existing_child.check_max_capacity(mtree)
-					except _SplitNodeReplacement as e:
-						del self.children[new_child.data]
-						for new_node in e.new_nodes:
-							distance = mtree.distance_function(self.data, new_node.data)
-							new_children.append((new_node, distance))
-				 	 */
+					try {
+						existingChild->checkMaxCapacity(mtree);
+					} catch(SplitNodeReplacement e) {
+						size_t _ = this->children.erase(existingChild->data);
+						assert(_ == 1);
+						delete existingChild;
+
+						for(int i = 0; i < e.NUM_NODES; ++i) {
+							Node* newNode = e.newNodes[i];
+							double distance = mtree->distanceFunction(this->data, newNode->data);
+							newChildren.push_back(ChildWithDistance{newNode, distance});
+						}
+					}
 				}
 			}
 		}
 
 
-		Node* newSplitNodeReplacement(const T&) const {
-			assert(!"IMPLEMENTED");
-			/*
-			return _InternalNode
-			*/
+		Node* newSplitNodeReplacement(const T& data) const {
+			return new InternalNode(data);
 		}
 
 
@@ -890,10 +899,7 @@ private:
 				Node* theChild = dynamic_cast<Node*>(this->children.begin()->second);
 				Node* newRoot;
 				if(dynamic_cast<InternalNode*>(theChild) != NULL) {
-					assert(!"IMPLEMENTED");
-					/*
 					newRoot = new RootNode(theChild->data);
-					*/
 				} else {
 					assert(dynamic_cast<LeafNode*>(theChild) != NULL);
 					newRoot = new RootLeafNode(theChild->data);
@@ -922,7 +928,8 @@ private:
 
 
 	class InternalNode : public NonRootNodeTrait, public NonLeafNodeTrait {
-
+	public:
+		InternalNode(const T& data) : Node(data) { }
 	};
 
 
