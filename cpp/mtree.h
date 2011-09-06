@@ -660,45 +660,59 @@ private:
 
 
 	class NonLeafNodeTrait : public virtual Node {
-		/*
-		CandidateChild = namedtuple('CandidateChild', 'node, distance, metric')
-		*/
-
-
 		void doAddData(const T& data, double distance, const MTreeBase* mtree) {
-			assert(!"IMPLEMENTED");
-			/*
-			min_radius_increase_needed = self.CandidateChild(None, None, _INFINITY)
-			nearest_distance = self.CandidateChild(None, None, _INFINITY)
+			struct CandidateChild {
+				Node* node;
+				double distance;
+				double metric;
+			};
 
-			for child in self.children.itervalues():
-				distance = mtree.distance_function(child.data, data)
-				if distance > child.radius:
+			CandidateChild minRadiusIncreaseNeeded = { NULL, -1.0, std::numeric_limits<double>::infinity() };
+			CandidateChild nearestDistance         = { NULL, -1.0, std::numeric_limits<double>::infinity() };
+
+			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
+				Node* child = dynamic_cast<Node*>(i->second);
+				assert(child != NULL);
+				double distance = mtree->distanceFunction(child->data, data);
+				if(distance > child->radius) {
+					assert(!"IMPLEMENTED");
+					/*
 					radius_increase = distance - child.radius
 					if radius_increase < min_radius_increase_needed.metric:
 						min_radius_increase_needed = self.CandidateChild(child, distance, radius_increase)
-				else:
-					if distance < nearest_distance.metric:
-						nearest_distance = self.CandidateChild(child, distance, distance)
+					*/
+				} else {
+					if(distance < nearestDistance.metric) {
+						nearestDistance = { child, distance, distance };
+					}
+				}
+			}
 
-			if nearest_distance.node is not None:
-				chosen = nearest_distance
-			else:
+			CandidateChild chosen;
+			if(nearestDistance.node != NULL) {  // TODO: turn if into x?y:z
+				chosen = nearestDistance;
+			} else {
+				assert(!"IMPLEMENTED");
+				/*
 				chosen = min_radius_increase_needed
+				*/
+			}
 
-			child = chosen.node
-			try:
-				child.add_data(data, chosen.distance, mtree)
-			except _SplitNodeReplacement as e:
+			Node* child = chosen.node;
+			try {
+				child->addData(data, chosen.distance, mtree);
+				updateRadius(child);
+			} catch(SplitNodeReplacement e) {
+				assert(!"IMPLEMENTED");
+				/*
 				assert len(e.new_nodes) == 2
 				# Replace current child with new nodes
 				del self.children[child.data]
 				for new_child in e.new_nodes:
 					distance = mtree.distance_function(self.data, new_child.data)
 					self.add_child(new_child, distance, mtree)
-			else:
-				self.update_radius(child)
-			*/
+				*/
+			}
 		}
 
 
@@ -797,12 +811,10 @@ private:
 
 				double distance = mtree->distanceFunction(theChild->data, anotherChild->data);
 				if(anotherChild->children.size() > anotherChild->getMinCapacity(mtree)) {
-					assert(!"IMPLEMENTED");
-					/*
-					if distance < distance_nearest_donor:
-						distance_nearest_donor = distance
-						nearest_donor = another_child
-					*/
+					if(distance < distanceNearestDonor) {
+						distanceNearestDonor = distance;
+						nearestDonor = anotherChild;
+					}
 				} else {
 					if(distance < distanceNearestMergeCandidate) {
 						distanceNearestMergeCandidate = distance;
@@ -824,21 +836,23 @@ private:
 				delete theChild;
 				return nearestMergeCandidate;
 			} else {
-				assert(!"IMPLEMENTED");
-				/*
-				# Donate
-				# Look for the nearest grandchild
-				nearest_grandchild_distance = _INFINITY
-				for grandchild in nearest_donor.children.itervalues():
-					distance = mtree.distance_function(grandchild.data, the_child.data)
-					if distance < nearest_grandchild_distance:
-						nearest_grandchild_distance = distance
-						nearest_grandchild = grandchild
+				// Donate
+				// Look for the nearest grandchild
+				IndexItem* nearestGrandchild;
+				double nearestGrandchildDistance = std::numeric_limits<double>::infinity();
+				for(typename Node::ChildrenMap::iterator i = nearestDonor->children.begin(); i != nearestDonor->children.end(); ++i) {
+					IndexItem* grandchild = i->second;
+					double distance = mtree->distanceFunction(grandchild->data, theChild->data);
+					if(distance < nearestGrandchildDistance) {
+						nearestGrandchildDistance = distance;
+						nearestGrandchild = grandchild;
+					}
+				}
 
-				del nearest_donor.children[nearest_grandchild.data]
-				the_child.add_child(nearest_grandchild, nearest_grandchild_distance, mtree)
-				return the_child
-				*/
+				size_t _ = nearestDonor->children.erase(nearestGrandchild->data);
+				assert(_ == 1);
+				theChild->addChild(nearestGrandchild, nearestGrandchildDistance, mtree);
+				return theChild;
 			}
 		}
 
