@@ -75,7 +75,7 @@ public:
 
 		ResultsIterator(const ResultsIterator&) = default;
 
-		ResultsIterator(ResultsIterator&&); // TODO: implement
+		ResultsIterator(ResultsIterator&&) = default;
 
 		ResultsIterator(const MTreeBase* mtree, const T& queryData, double range, size_t limit)
 			: mtree(mtree),
@@ -99,13 +99,22 @@ public:
 			fetchNext();
 		}
 
-		// TODO: default?
-		~ResultsIterator() {
-			// TODO: review
-		}
+		~ResultsIterator() = default;
 
-		ResultsIterator& operator=(const ResultsIterator&) = delete; // TODO: confirm if really delete
-		ResultsIterator& operator=(ResultsIterator&&) = delete; // TODO: confirm if really delete
+		ResultsIterator& operator=(const ResultsIterator&) = default;
+
+		ResultsIterator& operator=(ResultsIterator&& ri) {
+			std::swap(mtree                 , ri.mtree);
+			std::swap(queryData             , ri.queryData);
+			std::swap(range                 , ri.range);
+			std::swap(limit                 , ri.limit);
+			std::swap(isEnd                 , ri.isEnd);
+			std::swap(pendingQueue          , ri.pendingQueue);
+			std::swap(nextPendingMinDistance, ri.nextPendingMinDistance);
+			std::swap(nearestQueue          , ri.nearestQueue);
+			std::swap(yieldedCount          , ri.yieldedCount);
+			std::swap(currentResultItem     , ri.currentResultItem);
+		}
 
 		bool operator==(const ResultsIterator& ri) const {
 			if(this->isEnd  &&  ri.isEnd) {
@@ -204,49 +213,6 @@ public:
 			}
 
 			isEnd = true;
-
-
-			/* TODO: remove this comment
-
-			while pending_queue:
-				pending = pending_queue.pop()
-
-				node = pending.item
-				assert isinstance(node, _Node)
-
-				for child in node.children.itervalues():
-					if abs(pending.distance - child.distance_to_parent) - child.radius <= range:
-						child_distance = self.distance_function(query_data, child.data)
-						child_min_distance = max(child_distance - child.radius, 0)
-						if child_min_distance <= range:
-							iwd = _ItemWithDistances(item=child, distance=child_distance, min_distance=child_min_distance)
-							if isinstance(child, _Entry):
-								nearest_queue.push(iwd)
-							else:
-								pending_queue.push(iwd)
-
-				# Tries to yield known results so far
-				if pending_queue:
-					next_pending = pending_queue.head()
-					next_pending_min_distance = next_pending.min_distance
-				else:
-					next_pending_min_distance = _INFINITY
-
-				while nearest_queue:
-					next_nearest = nearest_queue.head()
-					assert isinstance(next_nearest, _ItemWithDistances)
-					if next_nearest.distance <= next_pending_min_distance:
-						_ = nearest_queue.pop()
-						assert _ is next_nearest
-
-						yield self.ResultItem(data=next_nearest.item.data, distance=next_nearest.distance)
-						yielded_count += 1
-						if yielded_count >= limit:
-							# Limit reached
-							return
-					else:
-						break
-			*/
 		}
 
 
@@ -324,16 +290,32 @@ public:
 		}
 	}
 
-	MTreeBase() = delete; // TODO: confirm if really delete
-	MTreeBase(const MTreeBase&) = delete; // TODO: confirm if really delete
-	MTreeBase(MTreeBase&&) = delete; // TODO: confirm if really delete
+	// Cannot copy!
+	MTreeBase(const MTreeBase&) = delete;
+
+	// ... but moving is ok.
+	MTreeBase(MTreeBase&& that)
+		: root(that.root),
+		  maxNodeCapacity(that.maxNodeCapacity),
+		  minNodeCapacity(that.minNodeCapacity)
+	{
+		that.root = 0;
+	}
 
 	virtual ~MTreeBase() {
 		delete root;
 	}
 
-	MTreeBase& operator=(const MTreeBase&) = delete; // TODO: confirm if really delete
-	MTreeBase& operator=(MTreeBase&&) = delete; // TODO: confirm if really delete
+	// Cannot copy!
+	MTreeBase& operator=(const MTreeBase&) = delete;
+
+	// ... but moving is ok.
+	MTreeBase& operator=(MTreeBase&& that) {
+		std::swap(this->root, that.root);
+		this->minNodeCapacity = that.minNodeCapacity;
+		this->maxNodeCapacity = that.maxNodeCapacity;
+		return *this;
+	}
 
 	void add(const T& data) {
 		if(root == NULL) {
@@ -432,6 +414,12 @@ public:
 
 		virtual ~IndexItem() { };
 
+		IndexItem() = delete;
+		IndexItem(const IndexItem&) = delete;
+		IndexItem(IndexItem&&) = delete;
+		IndexItem& operator=(const IndexItem&) = delete;
+		IndexItem& operator=(IndexItem&&) = delete;
+
 	protected:
 		IndexItem(const T& data)
 			: data(data),
@@ -456,13 +444,6 @@ public:
 			assert(dynamic_cast<const RootNodeTrait*>(this) == NULL);
 			assert(distanceToParent >= 0);
 		}
-
-	private:
-		IndexItem() = delete;
-		IndexItem(const IndexItem&) = delete; // TODO: confirm
-		IndexItem(IndexItem&&) = delete; // TODO: confirm
-		IndexItem& operator=(const IndexItem&) = delete; // TODO: confirm
-		IndexItem& operator=(IndexItem&&) = delete; // TODO: confirm
 	};
 
 
@@ -517,11 +498,10 @@ private:
 
 		Node() : IndexItem(*((T*)(0))) { assert(!"THIS SHOULD NEVER BE CALLED"); };
 
-		Node(const Node&) = delete; // TODO: confirm if really delete
-		Node(Node&&) = delete; // TODO: confirm if really delete
-
-		Node& operator=(const Node&) = delete; // TODO: confirm if really delete
-		Node& operator=(Node&&) = delete; // TODO: confirm if really delete
+		Node(const Node&) = delete;
+		Node(Node&&) = delete;
+		Node& operator=(const Node&) = delete;
+		Node& operator=(Node&&) = delete;
 
 		virtual void doAddData(const T& data, double distance, const MTreeBase* mtree) = 0;
 
