@@ -1,0 +1,9 @@
+An M-Tree is a data structure which indexes objects according to their relative
+distances. It is efficient for nearest-neighbor queries.
+
+See the README-* file for each language.
+
+For more information see:
+	http://en.wikipedia.org/wiki/M-tree
+	http://www.vldb.org/conf/1997/P426.PDF
+
