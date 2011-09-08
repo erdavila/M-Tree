@@ -128,8 +128,20 @@ public:
 			return aCopy;
 		}
 
-		ResultItem operator*() const {
+		ResultItem& operator*() {
 			return currentResultItem;
+		}
+
+		const ResultItem& operator*() const {
+			return currentResultItem;
+		}
+
+		ResultItem* operator->() {
+			return &currentResultItem;
+		}
+
+		const ResultItem* operator->() const {
+			return &currentResultItem;
 		}
 
 	private:
@@ -316,7 +328,6 @@ public:
 		}
 	}
 
-	MTreeBase() = delete; // TODO: confirm if really delete
 	MTreeBase(const MTreeBase&) = delete; // TODO: confirm if really delete
 	MTreeBase(MTreeBase&&) = delete; // TODO: confirm if really delete
 
