@@ -1,6 +1,19 @@
 An M-Tree is a data structure which indexes objects according to their relative
 distances. It is efficient for nearest-neighbor queries.
 
+This implementation follows the content of the article
+http://www.vldb.org/conf/1997/P426.PDF, with the following highlights:
+ * The data structure is the same described in the article.
+ * The algorithm for adding data had adaptations to handle with some corner cases.
+ * The algorithm for removing data was designed from scratch, since it was not
+ described on the article.
+ * Both query algorithms (by-range and k-nearest-neighbor) were merged into one.
+
+The only query algorithm can have as criteria either the range or the maximum
+number of resulting items, or both. The algorithm processes the results as needed,
+as the resulting items are fetched. The results are returned in ascending distance
+from the query data parameter.
+
 See the README-* file for each language.
 
 For more information see:
