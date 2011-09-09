@@ -2,6 +2,7 @@
 #define MTREE_H_
 
 
+#include <iterator>
 #include <limits>
 #include <map>
 #include <queue>
@@ -63,6 +64,13 @@ public:
 
 	class ResultsIterator {
 	public:
+		typedef std::input_iterator_tag iterator_category;
+		typedef ResultItem              value_type;
+		typedef signed long int         difference_type;
+		typedef ResultItem*             pointer;
+		typedef ResultItem&             reference;
+
+
 		ResultsIterator() : isEnd(true) { }
 
 		ResultsIterator(const ResultsIterator&) = default;
