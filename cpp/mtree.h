@@ -145,8 +145,20 @@ public:
 			return aCopy;
 		}
 
-		ResultItem operator*() const {
+		ResultItem& operator*() {
 			return currentResultItem;
+		}
+
+		const ResultItem& operator*() const {
+			return currentResultItem;
+		}
+
+		ResultItem* operator->() {
+			return &currentResultItem;
+		}
+
+		const ResultItem* operator->() const {
+			return &currentResultItem;
 		}
 
 	private:
