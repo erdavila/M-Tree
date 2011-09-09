@@ -1,4 +1,8 @@
-CPPOPTS:=-std=c++0x -fmessage-length=0 -O0 -g3 -Wall
+CPPOPTS:=-Wall -std=c++0x -fmessage-length=0
+
+ifeq ($(DEBUG),1)
+ CPPOPTS+=-O0 -g3
+endif
 
 
 .PHONY:
@@ -18,7 +22,7 @@ word-distance stats: \
 
 
 
-# Building 
+# Building each executable
 %: cpp/%.cpp
 	g++ $(CPPOPTS)  $<  -o $@
 
@@ -26,4 +30,4 @@ word-distance stats: \
 
 .PHONY:
 clean:
-	rm test_mtreebase word-distance stats
+	rm -f test_mtreebase word-distance stats
