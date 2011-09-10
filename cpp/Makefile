@@ -15,17 +15,14 @@ all:               \
 
 
 # Header dependencies
-test_mtreebase word-distance stats: \
-	cpp/mtree.h \
-	cpp/functions.h
+test_mtreebase  word-distance  stats  :  mtree.h  functions.h
 
-word-distance stats: \
-	cpp/word-distance.h
+word-distance  stats :  word-distance.h
 
 
 
 # Building each executable
-%: cpp/%.cpp
+%: %.cpp
 	g++ $(CPPOPTS)  $<  -o $@
 
 
