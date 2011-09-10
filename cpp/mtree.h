@@ -10,6 +10,13 @@
 #include "functions.h"
 
 
+#ifdef NDEBUG
+# define IF_DEBUG(X)
+#else
+# define IF_DEBUG(X) X
+#endif
+
+
 namespace mtree {
 
 
@@ -125,7 +132,10 @@ public:
 				return false;
 			}
 
-			assert(!"IMPLEMENTED");
+			return  this->mtree == ri.mtree
+			    &&  this->range == ri.range
+			    &&  this->limit == ri.limit
+			    &&  this->yieldedCount == ri.yieldedCount;
 		}
 
 		bool operator!=(const ResultsIterator& ri) const {
@@ -405,9 +415,11 @@ protected:
 	}
 
 	void _check() const {
-		if(root != NULL) {
-			root->_check(this);
-		}
+		IF_DEBUG(
+			if(root != NULL) {
+					root->_check(this);
+			}
+		)
 	}
 
 private:
@@ -474,7 +486,7 @@ private:
 			checkMaxCapacity(mtree);
 		}
 
-		size_t _check(const MTreeBase* mtree) const {
+		IF_DEBUG(size_t _check(const MTreeBase* mtree) const {
 			IndexItem::_check(mtree);
 			_checkMinCapacity(mtree);
 			_checkMaxCapacity(mtree);
@@ -482,7 +494,7 @@ private:
 			bool   childHeightKnown = false;
 			size_t childHeight;
 			for(typename ChildrenMap::const_iterator i = children.begin(); i != children.end(); ++i) {
-				const T& data = i->first;
+				IF_DEBUG(const T& data = i->first);
 				IndexItem* child = i->second;
 
 				assert(child->data == data);
@@ -499,7 +511,7 @@ private:
 			}
 
 			return childHeight + 1;
-		}
+		})
 
 		typedef std::map<T, IndexItem*> ChildrenMap;
 
@@ -592,7 +604,7 @@ private:
 		virtual void _checkChildClass(IndexItem* child) const = 0;
 
 	private:
-		void _checkChildMetrics(IndexItem* child, const MTreeBase* mtree) const {
+		IF_DEBUG(void _checkChildMetrics(IndexItem* child, const MTreeBase* mtree) const {
 			double dist = mtree->distanceFunction(child->data, this->data);
 			assert(child->distanceToParent == dist);
 
@@ -602,7 +614,7 @@ private:
 			 */
 			double sum = child->distanceToParent + child->radius;
 			assert(sum <= this->radius);
-		}
+		})
 	};
 
 
@@ -694,7 +706,8 @@ private:
 				updateRadius(child);
 			} catch(SplitNodeReplacement e) {
 				// Replace current child with new nodes
-				size_t _ = this->children.erase(child->data);
+				IF_DEBUG(size_t _ =)
+					this->children.erase(child->data);
 				assert(_ == 1);
 				delete child;
 
@@ -745,7 +758,8 @@ private:
 					try {
 						existingChild->checkMaxCapacity(mtree);
 					} catch(SplitNodeReplacement e) {
-						size_t _ = this->children.erase(existingChild->data);
+						IF_DEBUG(size_t _ =)
+							this->children.erase(existingChild->data);
 						assert(_ == 1);
 						delete existingChild;
 
@@ -845,7 +859,8 @@ private:
 					}
 				}
 
-				size_t _ = nearestDonor->children.erase(nearestGrandchild->data);
+				IF_DEBUG(size_t _ =)
+					nearestDonor->children.erase(nearestGrandchild->data);
 				assert(_ == 1);
 				theChild->addChild(nearestGrandchild, nearestGrandchildDistance, mtree);
 				return theChild;
@@ -946,178 +961,7 @@ private:
 } /* namespace mtree */
 
 
+#undef IF_DEBUG
+
+
 #endif /* MTREE_H_ */
-
-
-/*
-from collections import namedtuple
-import functions
-from heap_queue import HeapQueue
-
-
-
-_INFINITY = float("inf")
-
-_ItemWithDistances = namedtuple('_ItemWithDistances', 'item, distance, min_distance')
-
-
-
-class _RootNodeReplacement(Exception):
-	def __init__(self, new_root):
-		super(_RootNodeReplacement, self).__init__(new_root)
-		self.new_root = new_root
-
-class _SplitNodeReplacement(Exception):
-	def __init__(self, new_nodes):
-		super(_SplitNodeReplacement, self).__init__(new_nodes)
-		self.new_nodes = new_nodes
-
-class _NodeUnderCapacity(Exception):
-	pass
-
-
-
-
-class _RootNodeTrait(_Node):
-
-
-class _NonRootNodeTrait(_Node)
-
-
-class _LeafNodeTrait(_Node):
-
-
-class _NonLeafNodeTrait(_Node)
-
-
-class _RootNode(_RootNodeTrait, _NonLeafNodeTrait)
-
-
-class _InternalNode(_NonRootNodeTrait, _NonLeafNodeTrait)
-
-
-class _LeafNode(_NonRootNodeTrait, _LeafNodeTrait):
-	pass
-
-
-
-class _Entry(_IndexItem)
-
-
-
-class MTreeBase(object):
-	"""
-	A data structure for indexing objects based on their proximity.
-
-	The data objects must be any hashable object and the support functions
-	(distance and split functions) must understand them.
-
-	See http://en.wikipedia.org/wiki/M-tree
-	"""
-
-
-	ResultItem = namedtuple('ResultItem', 'data, distance')
-
-
-	def __init__(self,
-		         min_node_capacity=50, max_node_capacity=None,
-		         distance_function=functions.euclidean_distance,
-		         split_function=functions.make_split_function(functions.random_promotion, functions.balanced_partition)
-		        ):
-		"""
-		Creates an M-Tree.
-
-		The argument min_node_capacity must be at least 2.
-		The argument max_node_capacity should be at least 2*min_node_capacity-1.
-		The optional argument distance_function must be a function which calculates
-		the distance between two data objects.
-		The optional argument split_function must be a function which chooses two
-		data objects and then partitions the set of data into two subsets
-		according to the chosen objects. Its arguments are the set of data objects
-		and the distance_function. Must return a sequence with the following four values:
-			- First chosen data object.
-			- Subset with at least [min_node_capacity] objects based on the first
-				chosen data object. Must contain the first chosen data object.
-			- Second chosen data object.
-			- Subset with at least [min_node_capacity] objects based on the second
-				chosen data object. Must contain the second chosen data object.
-		"""
-		if min_node_capacity < 2:
-			raise ValueError("min_node_capacity must be at least 2")
-		if max_node_capacity is None:
-			max_node_capacity = 2 * min_node_capacity - 1
-		if max_node_capacity <= min_node_capacity:
-			raise ValueError("max_node_capacity must be greater than min_node_capacity")
-
-		self.min_node_capacity = min_node_capacity
-		self.max_node_capacity = max_node_capacity
-		self.distance_function = distance_function
-		self.split_function = split_function
-		self.root = None
-
-
-	def remove(self, data)
-
-
-	def get_nearest(self, query_data, range=_INFINITY, limit=_INFINITY):
-		"""
-		Returns an iterator on the indexed data nearest to the query_data. The
-		returned items are tuples containing the data and its distance to the
-		query_data, in increasing distance order. The results can be limited by
-		the range (maximum distance from the query_data) and limit arguments.
-		"""
-		if self.root is None:
-			# No indexed data!
-			return
-
-		distance = self.distance_function(query_data, self.root.data)
-		min_distance = max(distance - self.root.radius, 0)
-
-		pending_queue = HeapQueue(
-				content=[_ItemWithDistances(item=self.root, distance=distance, min_distance=min_distance)],
-				key=lambda iwd: iwd.min_distance,
-			)
-
-		nearest_queue = HeapQueue(key=lambda iwd: iwd.distance)
-
-		yielded_count = 0
-
-		while pending_queue:
-			pending = pending_queue.pop()
-
-			node = pending.item
-			assert isinstance(node, _Node)
-
-			for child in node.children.itervalues():
-				if abs(pending.distance - child.distance_to_parent) - child.radius <= range:
-					child_distance = self.distance_function(query_data, child.data)
-					child_min_distance = max(child_distance - child.radius, 0)
-					if child_min_distance <= range:
-						iwd = _ItemWithDistances(item=child, distance=child_distance, min_distance=child_min_distance)
-						if isinstance(child, _Entry):
-							nearest_queue.push(iwd)
-						else:
-							pending_queue.push(iwd)
-
-			# Tries to yield known results so far
-			if pending_queue:
-				next_pending = pending_queue.head()
-				next_pending_min_distance = next_pending.min_distance
-			else:
-				next_pending_min_distance = _INFINITY
-
-			while nearest_queue:
-				next_nearest = nearest_queue.head()
-				assert isinstance(next_nearest, _ItemWithDistances)
-				if next_nearest.distance <= next_pending_min_distance:
-					_ = nearest_queue.pop()
-					assert _ is next_nearest
-
-					yield self.ResultItem(data=next_nearest.item.data, distance=next_nearest.distance)
-					yielded_count += 1
-					if yielded_count >= limit:
-						# Limit reached
-						return
-				else:
-					break
- */
