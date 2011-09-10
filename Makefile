@@ -2,6 +2,8 @@ CPPOPTS:=-Wall -std=c++0x -fmessage-length=0
 
 ifeq ($(DEBUG),1)
  CPPOPTS+=-O0 -g3
+else
+ CPPOPTS+=-DNDEBUG
 endif
 
 
