@@ -27,9 +27,10 @@ class Test(unittest.TestCase):
 		
 		def checked(unchecked_method):
 			def checked_method(*args, **kwargs):
-				result = unchecked_method(*args, **kwargs)
-				self.mtree._check()
-				return result
+				try:
+					return unchecked_method(*args, **kwargs)
+				finally:
+					self.mtree._check()
 			return checked_method
 		
 		self.mtree.add = checked(self.mtree.add)
@@ -128,7 +129,9 @@ class Test(unittest.TestCase):
 		else:
 			if generated:
 				os.remove(random_test_path)
-				os.remove(random_test_path + 'c')
+				for compiled_file in (random_test_path + 'c', random_test_path + 'o'):
+					if os.path.isfile(compiled_file):
+						os.remove(compiled_file)
 			else:
 				print >>sys.stderr, "ATTENTION: The previously existing random test"
 				print >>sys.stderr, "has passed. Do want to delete it or convert to"

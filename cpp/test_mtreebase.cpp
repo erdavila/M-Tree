@@ -25,12 +25,24 @@ public:
 	MTreeBaseTest() : MTreeBase<Data>(2) { }
 
 	void add(const Data& data) {
-		MTreeBase<Data>::add(data);
+		try {
+			MTreeBase<Data>::add(data);
+		} catch(...) {
+			// Check even if an exception is thrown
+			_check();
+			throw;
+		}
 		_check();
 	}
 
 	void remove(const Data& data) throw (DataNotFound) {
-		MTreeBase<Data>::remove(data);
+		try {
+			MTreeBase<Data>::remove(data);
+		} catch(...) {
+			// Check even if an exception is thrown
+			_check();
+			throw;
+		}
 		_check();
 	}
 
