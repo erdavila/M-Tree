@@ -1,4 +1,4 @@
-An M-Tree is a data structure which indexes objects according to their relative
+An m-tree is a data structure which indexes objects according to their relative
 distances. It is efficient for nearest-neighbor queries.
 
 This implementation follows the content of the article
@@ -14,27 +14,43 @@ of resulting items, or both. The algorithm processes the results as needed, as
 the resulting items are fetched. The results are returned in non-decreasing distance
 from the query data parameter.
 
-MTreeBase is the core class that implements the M-Tree. Its constructors receive
-arguments that specify the minimum and maximum number of children in each node,
-which must be tweaked according to the application needs.
-The data objects can be any object that are understood by the distance function.
+MTreeBase is the core class that implements an m-tree. The data objects can be
+any object that are understood by the distance function.
 Some examples:
- * Data objects can be N-dimensional-space coordinates and the distance function
+ * Data objects could be N-dimensional-space coordinates and the distance function
    could return the euclidean distance between two data objects.
- * Data objects can be regular strings and the distance function could calculate
+ * Data objects could be regular strings and the distance function could calculate
    the edit (Levenshtein) distance between two strings.
 The distance function must be provided by the user.
 Two equal objects should not be added to the same MTreeBase instance. There are
 no validation regarding this and, if done, the behavior of the tree is undefined.
 
+Given a data object type and a distance function, some aspects can directly
+impact the performance of an m-tree: the constraints on the number of children for
+the nodes and the support functions (split, promotion, and partition functions).
+An m-tree is implemented as a tree (really!? :-P) and the minimum and maximum
+number of children on each node can be customized. When the maximum capacity of
+a node is exceeded, a split function is used to split the node, which is replaced
+by two new nodes. The split function can be seen as being composed by a promotion
+function and a partition function. The promotion function must choose (promote)
+two children from the node that will be split. The partition function must partition
+the set of children into two sets corresponding to the promoted children. The two
+promoted children and their corresponding partitions will be used to create the
+two nodes that will replace the exceeding node.
+There are some pre-defined implementations for promotion and partition functions,
+and the user can implement new ones at will.
+
+
 The yet-to-be-implemented MTree class wraps an MTreeBase and a mapping structure,
 so it helps on keeping track of objects already added. The data objects work
 as keys for associated value objects, so MTree can be used as a dictionary.
 
-The yet-to-be-implemented MultiMTree works like the MTree, but also allows
-associating more than one value object to the same key. The number of values
-associated to the same key are taken into account when performing queries
-constrained by the number of results.
+
+The yet-to-be-implemented MultiMTree works like the MTree, but allows associating
+more than one value object to the same key. The number of values associated to
+the same key are taken into account when performing queries constrained by the
+number of results.
+
 
 
 See the README file specific for each language:

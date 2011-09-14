@@ -2,11 +2,10 @@ The implementation of the m-tree is on the module named mtree and the module
 mtree.functions contains some support functions.
 
 
-
 mtree.MTreeBase - The class that implements the m-tree data structure.
 	The data objects must be any hashable object and the support functions
 	(distance and split functions) must understand them.
-
+	
 	mtree.MTreeBase(min_node_capacity, max_node_capacity, distance_function, split_function)
 		All the constructor arguments are optional:
 		 * min_node_capacity - Specifies the minimum number of children for each
@@ -20,14 +19,14 @@ mtree.MTreeBase - The class that implements the m-tree data structure.
 		   Its arguments are a set of data objects and the distance_function. It
 		   must return a sequence with the following four values:
 			- First chosen data object.
-			- Subset with at least [min_node_capacity] objects based on the first
+			- Subset with at least min_node_capacity objects based on the first
 			  chosen data object. Must contain the first chosen data object.
 			- Second chosen data object.
-			- Subset with at least [min_node_capacity] objects based on the second
+			- Subset with at least min_node_capacity objects based on the second
 			  chosen data object. Must contain the second chosen data object.
 		   The default value for split_function is a composition of the functions
 		   mtree.functions.random_promotion and mtree.functions.balanced_partition.
-
+	
 	mtree.MTreeBase.add(data)
 		Adds and indexes a data object. The behavior of the m-tree becames undefined
 		if the data was already add.
@@ -49,8 +48,8 @@ mtree.MTreeBase - The class that implements the m-tree data structure.
 
 mtree.functions.euclidean_distance(data1, data2)
 	A distance function which calculates the distance between two data objects
-	representing coordinates. The data objects can be list, tuples or any iterable
-	object.
+	representing coordinates. The data objects can be lists, tuples or any iterable
+	objects.
 
 mtree.functions.random_promotion(data_objects, distance_function)
 	A promotion function which randomly chooses and returns two data objects.
