@@ -6,17 +6,42 @@ http://www.vldb.org/conf/1997/P426.PDF, with the following highlights:
  * The data structure is the same described in the article.
  * The algorithm for adding data had adaptations to handle with some corner cases.
  * The algorithm for removing data was designed from scratch, since it was not
- described on the article.
+   described on the article.
  * Both query algorithms (by-range and k-nearest-neighbor) were merged into one.
 
-The only query algorithm can have as criteria either the range or the maximum
-number of resulting items, or both. The algorithm processes the results as needed,
-as the resulting items are fetched. The results are returned in ascending distance
+The query algorithm can have as criteria either the range or the maximum number
+of resulting items, or both. The algorithm processes the results as needed, as
+the resulting items are fetched. The results are returned in non-decreasing distance
 from the query data parameter.
 
-See the README-* file for each language.
+MTreeBase is the core class that implements the M-Tree. Its constructors receive
+arguments that specify the minimum and maximum number of children in each node,
+which must be tweaked according to the application needs.
+The data objects can be any object that are understood by the distance function.
+Some examples:
+ * Data objects can be N-dimensional-space coordinates and the distance function
+   could return the euclidean distance between two data objects.
+ * Data objects can be regular strings and the distance function could calculate
+   the edit (Levenshtein) distance between two strings.
+The distance function must be provided by the user.
+Two equal objects should not be added to the same MTreeBase instance. There are
+no validation regarding this and, if done, the behavior of the tree is undefined.
+
+The yet-to-be-implemented MTree class wraps an MTreeBase and a mapping structure,
+so it helps on keeping track of objects already added. The data objects work
+as keys for associated value objects, so MTree can be used as a dictionary.
+
+The yet-to-be-implemented MultiMTree works like the MTree, but also allows
+associating more than one value object to the same key. The number of values
+associated to the same key are taken into account when performing queries
+constrained by the number of results.
+
+
+See the README file specific for each language:
+ * README-py for Python.
+ * README-cpp for C++.
+	
 
 For more information see:
 	http://en.wikipedia.org/wiki/M-tree
 	http://www.vldb.org/conf/1997/P426.PDF
-
