@@ -20,13 +20,13 @@ using namespace std;
 typedef vector<int> Data;
 
 
-class MTreeBaseTest : public mtree::MTreeBase<Data> {
+class MTreeBaseTest : public mtree::mtree<Data> {
 public:
-	MTreeBaseTest() : MTreeBase<Data>(2) { }
+	MTreeBaseTest() : mtree<Data>(2) { }
 
 	void add(const Data& data) {
 		try {
-			MTreeBase<Data>::add(data);
+			mtree<Data>::add(data);
 		} catch(...) {
 			// Check even if an exception is thrown
 			_check();
@@ -37,7 +37,7 @@ public:
 
 	void remove(const Data& data) throw (DataNotFound) {
 		try {
-			MTreeBase<Data>::remove(data);
+			mtree<Data>::remove(data);
 		} catch(...) {
 			// Check even if an exception is thrown
 			_check();
@@ -47,7 +47,7 @@ public:
 	}
 
 	double distanceFunction(const Data& data1, const Data& data2) const {
-		return mtree::functions::euclideanDistance(data1, data2);
+		return ::mtree::functions::euclideanDistance(data1, data2);
 	}
 
 protected:

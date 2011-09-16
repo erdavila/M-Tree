@@ -9,13 +9,13 @@ endif
 
 .PHONY:
 all:               \
-	test_mtreebase \
+	test_mtree     \
 	word-distance  \
 	stats
 
 
 # Header dependencies
-test_mtreebase  word-distance  stats  :  mtree.h  functions.h
+test_mtree  word-distance  stats  :  mtree.h  functions.h
 
 word-distance  stats :  word-distance.h
 
@@ -29,4 +29,4 @@ word-distance  stats :  word-distance.h
 
 .PHONY:
 clean:
-	rm -f test_mtreebase word-distance stats
+	rm -f test_mtree word-distance stats

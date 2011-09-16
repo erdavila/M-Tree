@@ -44,7 +44,7 @@ size_t wordDistance(std::string word1, std::string word2) {
 
 
 
-class WordMTree : public mtree::MTreeBase<std::string> {
+class WordMTree : public mtree::mtree<std::string> {
 private:
 	double distanceFunction(const std::string& word1, const std::string& word2) const {
 		return wordDistance(word1, word2);
@@ -55,7 +55,7 @@ public:
 
 	WordMTree(WordMTree&&);
 
-	WordMTree(size_t minNodeCapacity) : ::mtree::MTreeBase<std::string>(minNodeCapacity) {}
+	WordMTree(size_t minNodeCapacity) : ::mtree::mtree<std::string>(minNodeCapacity) {}
 };
 
 
