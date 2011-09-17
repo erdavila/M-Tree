@@ -13,18 +13,24 @@ namespace mtree {
 namespace functions {
 
 
-template <typename T>
-double euclideanDistance(const std::vector<T>& data1, const std::vector<T>& data2) {
-	typedef typename std::vector<T>::const_iterator Iter;
-
-	double distance = 0;
-	for(Iter i1 = data1.begin(), i2 = data2.begin(); i1 != data1.end()  &&  i2 != data2.end(); ++i1, ++i2) {
-		double diff = *i1 - *i2;
-		distance += diff * diff;
+/*
+ * Calculates the euclidean distance between two data objects representing
+ * coordinates.
+ * Assumes that the data objects are same-sized sequences of numbers.
+ * See http://en.wikipedia.org/wiki/Euclidean_distance
+ */
+struct euclidean_distance {
+	template <typename Container>
+	double operator()(const Container& data1, const Container& data2) const {
+		double distance = 0;
+		for(auto i1 = data1.begin(), i2 = data2.begin(); i1 != data1.end()  &&  i2 != data2.end(); ++i1, ++i2) {
+			double diff = *i1 - *i2;
+			distance += diff * diff;
+		}
+		distance = sqrt(distance);
+		return distance;
 	}
-	distance = sqrt(distance);
-	return distance;
-}
+};
 
 
 
@@ -87,7 +93,7 @@ void balancedPartition(const std::pair<T, T>& promoted, std::set<T>& firstPartit
 }
 
 
-} /* namespace mtree::functions */
+} /* namespace functions */
 } /* namespace mtree */
 
 

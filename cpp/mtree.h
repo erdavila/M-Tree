@@ -22,7 +22,10 @@ namespace mtree {
 
 
 
-template <typename Data>
+template <
+	typename Data,
+	typename DistanceFunction = functions::euclidean_distance
+>
 class mtree {
 private:
 	class Node;
@@ -98,7 +101,7 @@ public:
 				return;
 			}
 
-			double distance = _mtree->distanceFunction(queryData, _mtree->root->data);
+			double distance = _mtree->distance_function(queryData, _mtree->root->data);
 			double minDistance = std::max(distance - _mtree->root->radius, 0.0);
 
 			pendingQueue.push(ItemWithDistances<Node>(_mtree->root, distance, minDistance));
@@ -212,7 +215,7 @@ public:
 				for(typename Node::ChildrenMap::const_iterator i = node->children.begin(); i != node->children.end(); ++i) {
 					IndexItem* child = i->second;
 					if(std::abs(pending.distance - child->distanceToParent) - child->radius <= range) {
-						double childDistance = _mtree->distanceFunction(queryData, child->data);
+						double childDistance = _mtree->distance_function(queryData, child->data);
 						double childMinDistance = std::max(childDistance - child->radius, 0.0);
 						if(childMinDistance <= range) {
 							Entry* entry = dynamic_cast<Entry*>(child);
@@ -285,7 +288,7 @@ public:
 			}
 
 			// Not found in cache
-			double distance = _mtree->distanceFunction(data1, data2);
+			double distance = _mtree->distance_function(data1, data2);
 
 			// Store in cache
 			cache.insert(make_pair(make_pair(data1, data2), distance));
@@ -302,12 +305,19 @@ public:
 	};
 
 
+	enum { DEFAULT_MIN_NODE_CAPACITY = 50 };
+
 
 	explicit
-	mtree(size_t minNodeCapacity=50, size_t maxNodeCapacity=-1)
+	mtree(
+			size_t minNodeCapacity = DEFAULT_MIN_NODE_CAPACITY,
+			size_t maxNodeCapacity = -1,
+			DistanceFunction distance_function = DistanceFunction()
+		)
 		: minNodeCapacity(minNodeCapacity),
 		  maxNodeCapacity(maxNodeCapacity),
-		  root(NULL)
+		  root(NULL),
+		  distance_function(distance_function)
 	{
 		if(maxNodeCapacity == size_t(-1)) {
 			this->maxNodeCapacity = 2 * minNodeCapacity - 1;
@@ -321,7 +331,8 @@ public:
 	mtree(mtree&& that)
 		: root(that.root),
 		  maxNodeCapacity(that.maxNodeCapacity),
-		  minNodeCapacity(that.minNodeCapacity)
+		  minNodeCapacity(that.minNodeCapacity),
+		  distance_function(that.distance_function)
 	{
 		that.root = 0;
 	}
@@ -338,6 +349,7 @@ public:
 		std::swap(this->root, that.root);
 		this->minNodeCapacity = that.minNodeCapacity;
 		this->maxNodeCapacity = that.maxNodeCapacity;
+		this->distance_function = that.distance_function;
 		return *this;
 	}
 
@@ -346,7 +358,7 @@ public:
 			root = new RootLeafNode(data);
 			root->addData(data, 0, this);
 		} else {
-			double distance = distanceFunction(data, root->data);
+			double distance = distance_function(data, root->data);
 			try {
 				root->addData(data, distance, this);
 			} catch(SplitNodeReplacement& e) {
@@ -355,7 +367,7 @@ public:
 				root = newRoot;
 				for(int i = 0; i < SplitNodeReplacement::NUM_NODES; ++i) {
 					Node* newNode = e.newNodes[i];
-					double distance = distanceFunction(root->data, newNode->data);
+					double distance = distance_function(root->data, newNode->data);
 					root->addChild(newNode, distance, this);
 				}
 			}
@@ -368,7 +380,7 @@ public:
 			throw DataNotFound{data};
 		}
 
-		double distanceToRoot = distanceFunction(data, root->data);
+		double distanceToRoot = distance_function(data, root->data);
 		try {
 			root->removeData(data, distanceToRoot, this);
 		} catch(RootNodeReplacement e) {
@@ -395,7 +407,6 @@ public:
 	}
 
 protected:
-	virtual double distanceFunction(const Data&, const Data&) const = 0;
 
 	typedef std::pair<Data, Data> PromotedPair;
 	typedef std::set<Data> DataSet;
@@ -409,11 +420,11 @@ protected:
 	}
 
 	virtual PromotedPair promotionFunction(const DataSet& dataSet, CachedDistanceFunction& cachedDistanceFunction) const {
-		return ::mtree::functions::randomPromotion(dataSet, cachedDistanceFunction);
+		return functions::randomPromotion(dataSet, cachedDistanceFunction);
 	}
 
 	virtual void partitionFunction(const PromotedPair& promoted, Partition& firstPartition, Partition& secondPartition, CachedDistanceFunction& cachedDistanceFunction) const {
-		return ::mtree::functions::balancedPartition(promoted, firstPartition, secondPartition, cachedDistanceFunction);
+		return functions::balancedPartition(promoted, firstPartition, secondPartition, cachedDistanceFunction);
 	}
 
 	void _check() const {
@@ -425,11 +436,12 @@ protected:
 	}
 
 private:
-
 	size_t minNodeCapacity;
 	size_t maxNodeCapacity;
 	Node* root;
 
+protected:
+	DistanceFunction distance_function;
 
 public:
 	class IndexItem {
@@ -607,7 +619,7 @@ private:
 
 	private:
 		IF_DEBUG(void _checkChildMetrics(IndexItem* child, const mtree* mtree) const {
-			double dist = mtree->distanceFunction(child->data, this->data);
+			double dist = mtree->distance_function(child->data, this->data);
 			assert(child->distanceToParent == dist);
 
 			/* TODO: investigate why the following line
@@ -685,7 +697,7 @@ private:
 			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
 				Node* child = dynamic_cast<Node*>(i->second);
 				assert(child != NULL);
-				double distance = mtree->distanceFunction(child->data, data);
+				double distance = mtree->distance_function(child->data, data);
 				if(distance > child->radius) {
 					double radiusIncrease = distance - child->radius;
 					if(radiusIncrease < minRadiusIncreaseNeeded.metric) {
@@ -715,7 +727,7 @@ private:
 
 				for(int i = 0; i < e.NUM_NODES; ++i) {
 					Node* newChild = e.newNodes[i];
-					double distance = mtree->distanceFunction(this->data, newChild->data);
+					double distance = mtree->distance_function(this->data, newChild->data);
 					addChild(newChild, distance, mtree);
 				}
 			}
@@ -767,7 +779,7 @@ private:
 
 						for(int i = 0; i < e.NUM_NODES; ++i) {
 							Node* newNode = e.newNodes[i];
-							double distance = mtree->distanceFunction(this->data, newNode->data);
+							double distance = mtree->distance_function(this->data, newNode->data);
 							newChildren.push_back(ChildWithDistance{newNode, distance});
 						}
 					}
@@ -786,7 +798,7 @@ private:
 				Node* child = dynamic_cast<Node*>(i->second);
 				assert(child != NULL);
 				if(abs(distance - child->distanceToParent) <= child->radius) {
-					double distanceToChild = mtree->distanceFunction(data, child->data);
+					double distanceToChild = mtree->distance_function(data, child->data);
 					if(distanceToChild <= child->radius) {
 						try {
 							child->removeData(data, distanceToChild, mtree);
@@ -821,7 +833,7 @@ private:
 				assert(anotherChild != NULL);
 				if(anotherChild == theChild) continue;
 
-				double distance = mtree->distanceFunction(theChild->data, anotherChild->data);
+				double distance = mtree->distance_function(theChild->data, anotherChild->data);
 				if(anotherChild->children.size() > anotherChild->getMinCapacity(mtree)) {
 					if(distance < distanceNearestDonor) {
 						distanceNearestDonor = distance;
@@ -839,7 +851,7 @@ private:
 				// Merge
 				for(typename Node::ChildrenMap::iterator i = theChild->children.begin(); i != theChild->children.end(); ++i) {
 					IndexItem* grandchild = i->second;
-					double distance = mtree->distanceFunction(grandchild->data, nearestMergeCandidate->data);
+					double distance = mtree->distance_function(grandchild->data, nearestMergeCandidate->data);
 					nearestMergeCandidate->addChild(grandchild, distance, mtree);
 				}
 
@@ -854,7 +866,7 @@ private:
 				double nearestGrandchildDistance = std::numeric_limits<double>::infinity();
 				for(typename Node::ChildrenMap::iterator i = nearestDonor->children.begin(); i != nearestDonor->children.end(); ++i) {
 					IndexItem* grandchild = i->second;
-					double distance = mtree->distanceFunction(grandchild->data, theChild->data);
+					double distance = mtree->distance_function(grandchild->data, theChild->data);
 					if(distance < nearestGrandchildDistance) {
 						nearestGrandchildDistance = distance;
 						nearestGrandchild = grandchild;
@@ -920,7 +932,7 @@ private:
 
 				for(typename Node::ChildrenMap::iterator i = theChild->children.begin(); i != theChild->children.end(); ++i) {
 					IndexItem* grandchild = i->second;
-					double distance = mtree->distanceFunction(newRoot->data, grandchild->data);
+					double distance = mtree->distance_function(newRoot->data, grandchild->data);
 					newRoot->addChild(grandchild, distance, mtree);
 				}
 				theChild->children.clear();

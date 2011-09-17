@@ -22,6 +22,10 @@ typedef vector<int> Data;
 
 class MTreeBaseTest : public mtree::mtree<Data> {
 public:
+	// Turning the member public
+	using mtree<Data>::distance_function;
+
+
 	MTreeBaseTest() : mtree<Data>(2) { }
 
 	void add(const Data& data) {
@@ -44,10 +48,6 @@ public:
 			throw;
 		}
 		_check();
-	}
-
-	double distanceFunction(const Data& data1, const Data& data2) const {
-		return ::mtree::functions::euclideanDistance(data1, data2);
 	}
 
 protected:
@@ -192,11 +192,11 @@ private:
 
 			// Check if every item in the results is within the range
 			assertLessEqual(i->distance, radius);
-			assertEqual(mtree.distanceFunction(i->data, queryData), i->distance);
+			assertEqual(mtree.distance_function(i->data, queryData), i->distance);
 		}
 
 		for(set<Data>::const_iterator data = allData.begin(); data != allData.end(); ++data) {
-			double distance = mtree.distanceFunction(*data, queryData);
+			double distance = mtree.distance_function(*data, queryData);
 			if(distance <= radius) {
 				assertIn(*data, strippedResults);
 			} else {
@@ -236,13 +236,13 @@ private:
 			// Check if items are not repeated
 			assertEqual(1, count(strippedResults.begin(), strippedResults.end(), i->data));
 
-			double distance = mtree.distanceFunction(i->data, queryData);
+			double distance = mtree.distance_function(i->data, queryData);
 			assertEqual(distance, i->distance);
 			farthest = max(farthest, distance);
 		}
 
 		for(set<Data>::iterator pData = allData.begin(); pData != allData.end(); ++pData) {
-			double distance = mtree.distanceFunction(*pData, queryData);
+			double distance = mtree.distance_function(*pData, queryData);
 			if(distance < farthest) {
 				assertIn(*pData, strippedResults);
 			} else if(distance > farthest) {
