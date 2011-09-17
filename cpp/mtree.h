@@ -65,39 +65,39 @@ private:
 public:
 
 	// Public exception
-	class DataNotFound {
+	class data_not_found {
 	public:
 		Data data;
 	};
 
 
-	class ResultItem {
+	class result_item {
 	public:
 		Data data;
 		double distance;
 
-		ResultItem() = default;
-		ResultItem(const ResultItem&) = default;
-		~ResultItem() = default;
-		ResultItem& operator=(const ResultItem&) = default;
+		result_item() = default;
+		result_item(const result_item&) = default;
+		~result_item() = default;
+		result_item& operator=(const result_item&) = default;
 	};
 
-	class ResultsIterator {
+	class results_iterator {
 	public:
 		typedef std::input_iterator_tag iterator_category;
-		typedef ResultItem              value_type;
+		typedef result_item              value_type;
 		typedef signed long int         difference_type;
-		typedef ResultItem*             pointer;
-		typedef ResultItem&             reference;
+		typedef result_item*             pointer;
+		typedef result_item&             reference;
 
 
-		ResultsIterator() : isEnd(true) { }
+		results_iterator() : isEnd(true) { }
 
-		ResultsIterator(const ResultsIterator&) = default;
+		results_iterator(const results_iterator&) = default;
 
-		ResultsIterator(ResultsIterator&&) = default;
+		results_iterator(results_iterator&&) = default;
 
-		ResultsIterator(const mtree* _mtree, const Data& queryData, double range, size_t limit)
+		results_iterator(const mtree* _mtree, const Data& queryData, double range, size_t limit)
 			: _mtree(_mtree),
 			  queryData(queryData),
 			  range(range),
@@ -119,11 +119,11 @@ public:
 			fetchNext();
 		}
 
-		~ResultsIterator() = default;
+		~results_iterator() = default;
 
-		ResultsIterator& operator=(const ResultsIterator&) = default;
+		results_iterator& operator=(const results_iterator&) = default;
 
-		ResultsIterator& operator=(ResultsIterator&& ri) {
+		results_iterator& operator=(results_iterator&& ri) {
 			std::swap(_mtree                , ri._mtree);
 			std::swap(queryData             , ri.queryData);
 			std::swap(range                 , ri.range);
@@ -136,7 +136,7 @@ public:
 			std::swap(currentResultItem     , ri.currentResultItem);
 		}
 
-		bool operator==(const ResultsIterator& ri) const {
+		bool operator==(const results_iterator& ri) const {
 			if(this->isEnd  &&  ri.isEnd) {
 				return true;
 			}
@@ -151,36 +151,36 @@ public:
 			    &&  this->yieldedCount == ri.yieldedCount;
 		}
 
-		bool operator!=(const ResultsIterator& ri) const {
+		bool operator!=(const results_iterator& ri) const {
 			return ! operator==(ri);
 		}
 
 		// prefix
-		ResultsIterator& operator++() {
+		results_iterator& operator++() {
 			fetchNext();
 			return *this;
 		}
 
 		// postfix
-		ResultsIterator operator++(int) {
-			ResultsIterator aCopy = *this;
+		results_iterator operator++(int) {
+			results_iterator aCopy = *this;
 			operator++();
 			return aCopy;
 		}
 
-		ResultItem& operator*() {
+		result_item& operator*() {
 			return currentResultItem;
 		}
 
-		const ResultItem& operator*() const {
+		const result_item& operator*() const {
 			return currentResultItem;
 		}
 
-		ResultItem* operator->() {
+		result_item* operator->() {
 			return &currentResultItem;
 		}
 
-		const ResultItem* operator->() const {
+		const result_item* operator->() const {
 			return &currentResultItem;
 		}
 
@@ -276,7 +276,7 @@ public:
 		double nextPendingMinDistance;
 		std::priority_queue<ItemWithDistances<Entry> > nearestQueue;
 		size_t yieldedCount;
-		ResultItem currentResultItem;
+		result_item currentResultItem;
 	};
 
 
@@ -353,9 +353,9 @@ public:
 	}
 
 
-	void remove(const Data& data) throw (DataNotFound) {
+	void remove(const Data& data) throw (data_not_found) {
 		if(root == NULL) {
-			throw DataNotFound{data};
+			throw data_not_found{data};
 		}
 
 		double distanceToRoot = distance_function(data, root->data);
@@ -368,27 +368,23 @@ public:
 	}
 
 
-	ResultsIterator getNearestByRange(const Data& queryData, double range) const {
-		return getNearest(queryData, range, std::numeric_limits<unsigned int>::max());
+	results_iterator get_nearest_by_range(const Data& queryData, double range) const {
+		return get_nearest(queryData, range, std::numeric_limits<unsigned int>::max());
 	}
 
-	ResultsIterator getNearestByLimit(const Data& queryData, size_t limit) const {
-		return getNearest(queryData, std::numeric_limits<double>::infinity(), limit);
+	results_iterator get_nearest_by_limit(const Data& queryData, size_t limit) const {
+		return get_nearest(queryData, std::numeric_limits<double>::infinity(), limit);
 	}
 
-	ResultsIterator getNearest(const Data& queryData, double range, size_t limit) const {
+	results_iterator get_nearest(const Data& queryData, double range, size_t limit) const {
 		return {this, queryData, range, limit};
 	}
 
-	ResultsIterator resultsEnd() const {
+	results_iterator results_end() const {
 		return {};
 	}
 
 protected:
-
-	typedef std::pair<Data, Data> PromotedPair;
-	typedef std::set<Data> Partition;
-
 
 	void _check() const {
 		IF_DEBUG(
@@ -399,6 +395,11 @@ protected:
 	}
 
 private:
+
+	typedef std::pair<Data, Data> PromotedPair;
+	typedef std::set<Data> Partition;
+
+
 	size_t minNodeCapacity;
 	size_t maxNodeCapacity;
 	Node* root;
@@ -507,7 +508,7 @@ private:
 
 		virtual void doAddData(const Data& data, double distance, const mtree* mtree) = 0;
 
-		virtual void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (DataNotFound) = 0;
+		virtual void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (data_not_found) = 0;
 
 	public:
 		void checkMaxCapacity(const mtree* mtree) throw (SplitNodeReplacement) {
@@ -551,7 +552,7 @@ private:
 	public:
 		virtual void addChild(IndexItem* child, double distance, const mtree* mtree) = 0;
 
-		virtual void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, DataNotFound) {
+		virtual void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, data_not_found) {
 			doRemoveData(data, distance, mtree);
 			if(children.size() < getMinCapacity(mtree)) {
 				throw NodeUnderCapacity();
@@ -634,9 +635,9 @@ private:
 			return new LeafNode(data);
 		}
 
-		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (DataNotFound) {
+		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (data_not_found) {
 			if(this->children.erase(data) == 0) {
-				throw DataNotFound{data};
+				throw data_not_found{data};
 			}
 		}
 
@@ -757,7 +758,7 @@ private:
 		}
 
 
-		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (DataNotFound) {
+		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (data_not_found) {
 			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
 				Node* child = dynamic_cast<Node*>(i->second);
 				assert(child != NULL);
@@ -768,7 +769,7 @@ private:
 							child->removeData(data, distanceToChild, mtree);
 							updateRadius(child);
 							return;
-						} catch(DataNotFound) {
+						} catch(data_not_found) {
 							// If DataNotFound was thrown, then the data was not found in the child
 						} catch(NodeUnderCapacity) {
 							Node* expandedChild = balanceChildren(child, mtree);
@@ -779,7 +780,7 @@ private:
 				}
 			}
 
-			throw DataNotFound{data};
+			throw data_not_found{data};
 		}
 
 
@@ -857,7 +858,7 @@ private:
 	public:
 		RootLeafNode(const Data& data) : Node(data) { }
 
-		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, DataNotFound) {
+		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, data_not_found) {
 			try {
 				Node::removeData(data, distance, mtree);
 			} catch (NodeUnderCapacity) {
@@ -880,7 +881,7 @@ private:
 		RootNode(const Data& data) : Node(data) {}
 
 	private:
-		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, DataNotFound) {
+		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, data_not_found) {
 			try {
 				Node::removeData(data, distance, mtree);
 			} catch(NodeUnderCapacity) {

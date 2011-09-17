@@ -64,7 +64,7 @@ public:
 		_check();
 	}
 
-	void remove(const Data& data) throw (DataNotFound) {
+	void remove(const Data& data) throw (data_not_found) {
 		try {
 			MTree::remove(data);
 		} catch(...) {
@@ -110,26 +110,26 @@ public:
 
 	void testRemoveNonExisting() {
 		// Empty
-		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
 
 		// With some items
 		mtree.add({4, 44});
-		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
 
 		mtree.add({95, 43});
-		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
 
 		mtree.add({76, 21});
-		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
 
 		mtree.add({64, 53});
-		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
 
 		mtree.add({47, 3});
-		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
 
 		mtree.add({26, 11});
-		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
 	}
 
 
@@ -153,7 +153,7 @@ public:
 	}
 
 private:
-	typedef vector<MTreeTest::ResultItem> ResultsVector;
+	typedef vector<MTreeTest::result_item> ResultsVector;
 
 	MTreeTest mtree;
 	set<Data> allData;
@@ -191,9 +191,9 @@ private:
 	void _checkNearestByRange(const Data& queryData, double radius) const {
 		ResultsVector results;
 		set<Data> strippedResults;
-		MTreeTest::ResultsIterator i = mtree.getNearestByRange(queryData, radius);
-		for(; i != mtree.resultsEnd(); i++) {
-			MTreeTest::ResultItem r = *i;
+		MTreeTest::results_iterator i = mtree.get_nearest_by_range(queryData, radius);
+		for(; i != mtree.results_end(); i++) {
+			MTreeTest::result_item r = *i;
 			results.push_back(r);
 			strippedResults.insert(r.data);
 		}
@@ -227,9 +227,9 @@ private:
 	void _checkNearestByLimit(const Data& queryData, unsigned int limit) const {
 		ResultsVector results;
 		set<Data> strippedResults;
-		MTreeTest::ResultsIterator i = mtree.getNearestByLimit(queryData, limit);
-		for(; i != mtree.resultsEnd(); i++) {
-			MTreeTest::ResultItem r = *i;
+		MTreeTest::results_iterator i = mtree.get_nearest_by_limit(queryData, limit);
+		for(; i != mtree.results_end(); i++) {
+			MTreeTest::result_item r = *i;
 			results.push_back(r);
 			strippedResults.insert(r.data);
 		}

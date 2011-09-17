@@ -58,7 +58,7 @@ int main(int argc, const char* argv[]) {
 		}
 
 		Timer t;
-		for(auto i = mtree.getNearestByLimit(word, 10); i != mtree.resultsEnd(); ++i) {
+		for(auto i = mtree.get_nearest_by_limit(word, 10); i != mtree.results_end(); ++i) {
 			cout << "\t" << i->distance << " " << i->data << endl;
 		}
 		Timer::Times times = t.getTimes();
