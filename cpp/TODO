@@ -2,6 +2,10 @@ Turn the C++ implementation more like a STL implementation.
 
 - Lowercase class names.
 
+- Lowercase method names.
+
+- Do not throw exceptions.
+
 - MTreeBase will turn to mtree.
 
 - Default support functions turned into classes with operator().
@@ -25,3 +29,8 @@ Turn the C++ implementation more like a STL implementation.
 	...
 	};
 
+- Implement a container-like result set, instead of returning directly an interator:
+	auto results = mt.getNearest(...);
+	for(auto i = results.begin(); i != results.end(); ++i) {
+		...
+	}

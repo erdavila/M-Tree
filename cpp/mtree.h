@@ -24,9 +24,18 @@ namespace mtree {
 
 template <
 	typename Data,
-	typename DistanceFunction = functions::euclidean_distance
+	typename DistanceFunction = functions::euclidean_distance,
+	typename SplitFunction = functions::split_function<
+			functions::random_promotion,
+			functions::balanced_partition
+		>
 >
 class mtree {
+public:
+	typedef DistanceFunction distance_function_type;
+	typedef SplitFunction    split_function_type;
+	typedef functions::cached_distance_function<Data, DistanceFunction> cached_distance_function_type;
+
 private:
 	class Node;
 	class Entry;
@@ -271,53 +280,20 @@ public:
 	};
 
 
-
-	class CachedDistanceFunction {
-	public:
-		CachedDistanceFunction(const mtree* _mtree) : _mtree(_mtree) {}
-
-		double operator()(const Data& data1, const Data& data2) {
-			typename CacheType::iterator i = cache.find(make_pair(data1, data2));
-			if(i != cache.end()) {
-				return i->second;
-			}
-
-			i = cache.find(make_pair(data2, data1));
-			if(i != cache.end()) {
-				return i->second;
-			}
-
-			// Not found in cache
-			double distance = _mtree->distance_function(data1, data2);
-
-			// Store in cache
-			cache.insert(make_pair(make_pair(data1, data2), distance));
-			cache.insert(make_pair(make_pair(data2, data1), distance));
-
-			return distance;
-		}
-
-	private:
-		typedef std::map<std::pair<Data, Data>, double> CacheType;
-
-		const mtree* _mtree;
-		CacheType cache;
-	};
-
-
 	enum { DEFAULT_MIN_NODE_CAPACITY = 50 };
 
 
-	explicit
-	mtree(
+	explicit mtree(
 			size_t minNodeCapacity = DEFAULT_MIN_NODE_CAPACITY,
 			size_t maxNodeCapacity = -1,
-			DistanceFunction distance_function = DistanceFunction()
+			DistanceFunction distance_function = DistanceFunction(),
+			SplitFunction split_function = SplitFunction()
 		)
 		: minNodeCapacity(minNodeCapacity),
 		  maxNodeCapacity(maxNodeCapacity),
 		  root(NULL),
-		  distance_function(distance_function)
+		  distance_function(distance_function),
+		  split_function(split_function)
 	{
 		if(maxNodeCapacity == size_t(-1)) {
 			this->maxNodeCapacity = 2 * minNodeCapacity - 1;
@@ -332,7 +308,8 @@ public:
 		: root(that.root),
 		  maxNodeCapacity(that.maxNodeCapacity),
 		  minNodeCapacity(that.minNodeCapacity),
-		  distance_function(that.distance_function)
+		  distance_function(that.distance_function),
+		  split_function(that.split_function)
 	{
 		that.root = 0;
 	}
@@ -350,6 +327,7 @@ public:
 		this->minNodeCapacity = that.minNodeCapacity;
 		this->maxNodeCapacity = that.maxNodeCapacity;
 		this->distance_function = that.distance_function;
+		this->split_function = that.split_function;
 		return *this;
 	}
 
@@ -409,28 +387,13 @@ public:
 protected:
 
 	typedef std::pair<Data, Data> PromotedPair;
-	typedef std::set<Data> DataSet;
 	typedef std::set<Data> Partition;
 
-
-	virtual PromotedPair splitFunction(Partition& firstPartition, Partition& secondPartition, CachedDistanceFunction& cachedDistanceFunction) const {
-		PromotedPair promoted = promotionFunction(firstPartition, cachedDistanceFunction);
-		partitionFunction(promoted, firstPartition, secondPartition, cachedDistanceFunction);
-		return promoted;
-	}
-
-	virtual PromotedPair promotionFunction(const DataSet& dataSet, CachedDistanceFunction& cachedDistanceFunction) const {
-		return functions::randomPromotion(dataSet, cachedDistanceFunction);
-	}
-
-	virtual void partitionFunction(const PromotedPair& promoted, Partition& firstPartition, Partition& secondPartition, CachedDistanceFunction& cachedDistanceFunction) const {
-		return functions::balancedPartition(promoted, firstPartition, secondPartition, cachedDistanceFunction);
-	}
 
 	void _check() const {
 		IF_DEBUG(
 			if(root != NULL) {
-					root->_check(this);
+				root->_check(this);
 			}
 		)
 	}
@@ -442,6 +405,7 @@ private:
 
 protected:
 	DistanceFunction distance_function;
+	SplitFunction split_function;
 
 public:
 	class IndexItem {
@@ -553,10 +517,10 @@ private:
 					firstPartition.insert(i->first);
 				}
 
-				CachedDistanceFunction cachedDistanceFunction(mtree);
+				cached_distance_function_type cachedDistanceFunction(mtree->distance_function);
 
 				Partition secondPartition;
-				PromotedPair promoted = mtree->splitFunction(firstPartition, secondPartition, cachedDistanceFunction);
+				PromotedPair promoted = mtree->split_function(firstPartition, secondPartition, cachedDistanceFunction);
 
 				Node* newNodes[2];
 				for(int i = 0; i < 2; ++i) {

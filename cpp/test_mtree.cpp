@@ -18,19 +18,44 @@ using namespace std;
 
 
 typedef vector<int> Data;
+typedef set<Data> DataSet;
+typedef mtree::functions::cached_distance_function<Data, mtree::functions::euclidean_distance> CachedDistanceFunction;
+typedef pair<Data, Data>(*PromotionFunction)(const DataSet&, CachedDistanceFunction&);
+
+PromotionFunction nonRandomPromotion =
+	[](const DataSet& dataSet, CachedDistanceFunction&) -> pair<Data, Data> {
+		vector<Data> dataObjects(dataSet.begin(), dataSet.end());
+		sort(dataObjects.begin(), dataObjects.end());
+		return {dataObjects.front(), dataObjects.back()};
+	};
 
 
-class MTreeBaseTest : public mtree::mtree<Data> {
+typedef mtree::mtree<
+		Data,
+		mtree::functions::euclidean_distance,
+		mtree::functions::split_function<
+				PromotionFunction,
+				mtree::functions::balanced_partition
+			>
+	>
+	MTree;
+
+
+class MTreeTest : public MTree {
 public:
 	// Turning the member public
-	using mtree<Data>::distance_function;
+	using MTree::distance_function;
 
-
-	MTreeBaseTest() : mtree<Data>(2) { }
+	MTreeTest()
+		: MTree(2, -1,
+				distance_function_type(),
+				split_function_type(nonRandomPromotion)
+			)
+		{}
 
 	void add(const Data& data) {
 		try {
-			mtree<Data>::add(data);
+			MTree::add(data);
 		} catch(...) {
 			// Check even if an exception is thrown
 			_check();
@@ -41,20 +66,13 @@ public:
 
 	void remove(const Data& data) throw (DataNotFound) {
 		try {
-			mtree<Data>::remove(data);
+			MTree::remove(data);
 		} catch(...) {
 			// Check even if an exception is thrown
 			_check();
 			throw;
 		}
 		_check();
-	}
-
-protected:
-	virtual PromotedPair promotionFunction(const DataSet& dataSet, CachedDistanceFunction& cachedDistanceFunction) const {
-		std::vector<Data> dataObjects(dataSet.begin(), dataSet.end());
-		sort(dataObjects.begin(), dataObjects.end());
-		return {dataObjects.front(), dataObjects.back()};
 	}
 };
 
@@ -92,26 +110,26 @@ public:
 
 	void testRemoveNonExisting() {
 		// Empty
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
 
 		// With some items
 		mtree.add({4, 44});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
 
 		mtree.add({95, 43});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
 
 		mtree.add({76, 21});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
 
 		mtree.add({64, 53});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
 
 		mtree.add({47, 3});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
 
 		mtree.add({26, 11});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assertRaises(MTreeTest::DataNotFound, mtree.remove({99, 77}));
 	}
 
 
@@ -135,9 +153,9 @@ public:
 	}
 
 private:
-	typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
+	typedef vector<MTreeTest::ResultItem> ResultsVector;
 
-	MTreeBaseTest mtree;
+	MTreeTest mtree;
 	set<Data> allData;
 
 
@@ -173,9 +191,9 @@ private:
 	void _checkNearestByRange(const Data& queryData, double radius) const {
 		ResultsVector results;
 		set<Data> strippedResults;
-		MTreeBaseTest::ResultsIterator i = mtree.getNearestByRange(queryData, radius);
+		MTreeTest::ResultsIterator i = mtree.getNearestByRange(queryData, radius);
 		for(; i != mtree.resultsEnd(); i++) {
-			MTreeBaseTest::ResultItem r = *i;
+			MTreeTest::ResultItem r = *i;
 			results.push_back(r);
 			strippedResults.insert(r.data);
 		}
@@ -209,9 +227,9 @@ private:
 	void _checkNearestByLimit(const Data& queryData, unsigned int limit) const {
 		ResultsVector results;
 		set<Data> strippedResults;
-		MTreeBaseTest::ResultsIterator i = mtree.getNearestByLimit(queryData, limit);
+		MTreeTest::ResultsIterator i = mtree.getNearestByLimit(queryData, limit);
 		for(; i != mtree.resultsEnd(); i++) {
-			MTreeBaseTest::ResultItem r = *i;
+			MTreeTest::ResultItem r = *i;
 			results.push_back(r);
 			strippedResults.insert(r.data);
 		}

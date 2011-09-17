@@ -44,13 +44,13 @@ size_t wordDistance(std::string word1, std::string word2) {
 
 
 
-typedef mtree::mtree<std::string, size_t(*)(std::string,std::string)> ParentType;
-class WordMTree : public ParentType {
+typedef mtree::mtree<std::string, size_t(*)(std::string,std::string)> MTree;
+class WordMTree : public MTree {
 public:
 	WordMTree(WordMTree&&);
 
-	WordMTree(size_t minNodeCapacity = ParentType::DEFAULT_MIN_NODE_CAPACITY)
-		: ParentType(minNodeCapacity, -1, wordDistance)
+	WordMTree(size_t minNodeCapacity = MTree::DEFAULT_MIN_NODE_CAPACITY)
+		: MTree(minNodeCapacity, -1, wordDistance)
 		{}
 };
 
