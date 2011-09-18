@@ -12,7 +12,7 @@
 #define assertLessEqual(A, B)         assert(A <= B);
 #define assertIn(ELEM, CONTAINER)     assert(CONTAINER.find(ELEM) != CONTAINER.end());
 #define assertNotIn(ELEM, CONTAINER)  assert(CONTAINER.find(ELEM) == CONTAINER.end());
-#define assertRaises(EX, CODE)        try{CODE;assert(false);}catch(EX){}
+#define assertRaises(EX, CODE)        try{CODE;assert(false);}catch(EX&){}
 
 using namespace std;
 
@@ -191,9 +191,10 @@ private:
 	void _checkNearestByRange(const Data& queryData, double radius) const {
 		ResultsVector results;
 		set<Data> strippedResults;
-		MTreeTest::results_iterator i = mtree.get_nearest_by_range(queryData, radius);
-		for(; i != mtree.results_end(); i++) {
-			MTreeTest::result_item r = *i;
+		MTreeTest::query query = mtree.get_nearest_by_range(queryData, radius);
+
+		for(MTreeTest::query::iterator i = query.begin(); i != query.end(); ++i) {
+			MTreeTest::query::value_type r = *i;
 			results.push_back(r);
 			strippedResults.insert(r.data);
 		}
@@ -227,8 +228,8 @@ private:
 	void _checkNearestByLimit(const Data& queryData, unsigned int limit) const {
 		ResultsVector results;
 		set<Data> strippedResults;
-		MTreeTest::results_iterator i = mtree.get_nearest_by_limit(queryData, limit);
-		for(; i != mtree.results_end(); i++) {
+		MTreeTest::query query = mtree.get_nearest_by_limit(queryData, limit);
+		for(MTreeTest::query::iterator i = query.begin(); i != query.end(); i++) {
 			MTreeTest::result_item r = *i;
 			results.push_back(r);
 			strippedResults.insert(r.data);

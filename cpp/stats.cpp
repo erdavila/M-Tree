@@ -60,7 +60,8 @@ void test(const WordMTree& mtree, const vector<string>& testWords, size_t minNod
 		Timer::Times totalTimes = {0, 0, 0};
 		for(size_t _ = 0; _ < REPETITIONS; ++_) {
 			Timer t;
-			vector<WordMTree::result_item> results(mtree.get_nearest_by_limit(testWord, limit), mtree.results_end());
+			auto query = mtree.get_nearest_by_limit(testWord, limit);
+			vector<WordMTree::result_item> results(query.begin(), query.end());
 			Timer::Times times = t.getTimes();
 			assert(results.size() == limit);
 			totalTimes.real += times.real;
