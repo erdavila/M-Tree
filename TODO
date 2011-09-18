@@ -1,0 +1,7 @@
+- Classes:
+	classes MTree/mtree - The basic implementation (old MTreeBase).
+	classes MTreeDict/mtree_map - With [] operator.
+	classes MTreeMultiDict/mtree_multimap.
+
+
+- Implement other support functions suggested in the article.
