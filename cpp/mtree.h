@@ -61,15 +61,13 @@ private:
 
 	class NodeUnderCapacity { };
 
-
-public:
-
-	// Public exception
-	class data_not_found {
+	class DataNotFound {
 	public:
 		Data data;
 	};
 
+
+public:
 
 	class result_item {
 	public:
@@ -392,9 +390,9 @@ public:
 	}
 
 
-	void remove(const Data& data) throw (data_not_found) {
+	bool remove(const Data& data) {
 		if(root == NULL) {
-			throw data_not_found{data};
+			return false;
 		}
 
 		double distanceToRoot = distance_function(data, root->data);
@@ -403,7 +401,10 @@ public:
 		} catch(RootNodeReplacement& e) {
 			delete root;
 			root = e.newRoot;
+		} catch(DataNotFound) {
+			return false;
 		}
+		return true;
 	}
 
 
@@ -543,7 +544,7 @@ private:
 
 		virtual void doAddData(const Data& data, double distance, const mtree* mtree) = 0;
 
-		virtual void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (data_not_found) = 0;
+		virtual void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (DataNotFound) = 0;
 
 	public:
 		void checkMaxCapacity(const mtree* mtree) throw (SplitNodeReplacement) {
@@ -587,7 +588,7 @@ private:
 	public:
 		virtual void addChild(IndexItem* child, double distance, const mtree* mtree) = 0;
 
-		virtual void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, data_not_found) {
+		virtual void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, DataNotFound) {
 			doRemoveData(data, distance, mtree);
 			if(children.size() < getMinCapacity(mtree)) {
 				throw NodeUnderCapacity();
@@ -670,9 +671,9 @@ private:
 			return new LeafNode(data);
 		}
 
-		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (data_not_found) {
+		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (DataNotFound) {
 			if(this->children.erase(data) == 0) {
-				throw data_not_found{data};
+				throw DataNotFound{data};
 			}
 		}
 
@@ -793,7 +794,7 @@ private:
 		}
 
 
-		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (data_not_found) {
+		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (DataNotFound) {
 			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
 				Node* child = dynamic_cast<Node*>(i->second);
 				assert(child != NULL);
@@ -804,7 +805,7 @@ private:
 							child->removeData(data, distanceToChild, mtree);
 							updateRadius(child);
 							return;
-						} catch(data_not_found&) {
+						} catch(DataNotFound&) {
 							// If DataNotFound was thrown, then the data was not found in the child
 						} catch(NodeUnderCapacity&) {
 							Node* expandedChild = balanceChildren(child, mtree);
@@ -815,7 +816,7 @@ private:
 				}
 			}
 
-			throw data_not_found{data};
+			throw DataNotFound{data};
 		}
 
 
@@ -893,7 +894,7 @@ private:
 	public:
 		RootLeafNode(const Data& data) : Node(data) { }
 
-		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, data_not_found) {
+		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, DataNotFound) {
 			try {
 				Node::removeData(data, distance, mtree);
 			} catch (NodeUnderCapacity&) {
@@ -916,7 +917,7 @@ private:
 		RootNode(const Data& data) : Node(data) {}
 
 	private:
-		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, data_not_found) {
+		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, DataNotFound) {
 			try {
 				Node::removeData(data, distance, mtree);
 			} catch(NodeUnderCapacity&) {

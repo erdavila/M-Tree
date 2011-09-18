@@ -1,3 +1,6 @@
+// Doesn't make sense to compile this without assertions!
+#undef NDEBUG
+
 #include <algorithm>
 #include <iostream>
 #include <set>
@@ -12,7 +15,6 @@
 #define assertLessEqual(A, B)         assert(A <= B);
 #define assertIn(ELEM, CONTAINER)     assert(CONTAINER.find(ELEM) != CONTAINER.end());
 #define assertNotIn(ELEM, CONTAINER)  assert(CONTAINER.find(ELEM) == CONTAINER.end());
-#define assertRaises(EX, CODE)        try{CODE;assert(false);}catch(EX&){}
 
 using namespace std;
 
@@ -42,6 +44,13 @@ typedef mtree::mtree<
 
 
 class MTreeTest : public MTree {
+private:
+	struct OnExit {
+		MTreeTest* mt;
+		OnExit(MTreeTest* mt) : mt(mt) {}
+		~OnExit() { mt->_check(); }
+	};
+
 public:
 	// Turning the member public
 	using MTree::distance_function;
@@ -54,25 +63,13 @@ public:
 		{}
 
 	void add(const Data& data) {
-		try {
-			MTree::add(data);
-		} catch(...) {
-			// Check even if an exception is thrown
-			_check();
-			throw;
-		}
-		_check();
+		OnExit onExit(this);
+		return MTree::add(data);
 	}
 
-	void remove(const Data& data) throw (data_not_found) {
-		try {
-			MTree::remove(data);
-		} catch(...) {
-			// Check even if an exception is thrown
-			_check();
-			throw;
-		}
-		_check();
+	bool remove(const Data& data) {
+		OnExit onExit(this);
+		return MTree::remove(data);
 	}
 };
 
@@ -110,26 +107,26 @@ public:
 
 	void testRemoveNonExisting() {
 		// Empty
-		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		// With some items
 		mtree.add({4, 44});
-		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({95, 43});
-		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({76, 21});
-		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({64, 53});
-		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({47, 3});
-		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({26, 11});
-		assertRaises(MTreeTest::data_not_found, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 	}
 
 
@@ -172,10 +169,12 @@ private:
 				allData.insert(i->data);
 				mtree.add(i->data);
 				break;
-			case 'R':
+			case 'R': {
 				allData.erase(i->data);
-				mtree.remove(i->data);
+				bool removed = mtree.remove(i->data);
+				assert(removed);
 				break;
+			}
 			default:
 				cerr << i->cmd << endl;
 				assert(false);
