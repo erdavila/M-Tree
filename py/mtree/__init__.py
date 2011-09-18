@@ -379,7 +379,7 @@ class _Entry(_IndexItem):
 
 
 
-class MTreeBase(object):
+class MTree(object):
 	"""
 	A data structure for indexing objects based on their proximity.
 	
