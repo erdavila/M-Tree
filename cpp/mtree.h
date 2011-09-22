@@ -10,24 +10,40 @@
 #include "functions.h"
 
 
-#ifdef NDEBUG
-# define IF_DEBUG(X)
-#else
-# define IF_DEBUG(X) X
-#endif
-
-
 
 namespace mtree {
 
 
 
+/**
+ * @brief The main class that implements the M-Tree.
+ *
+ * @tparam Data The type of data that will be indexed by the M-Tree. This type
+ *         must be an assignable type and a strict weak ordering must be defined
+ *         by @c std::less<Data>.
+ * @tparam DistanceFunction The type of the function that will be used to
+ *         calculate the distance between two @c Data objects. By default, it is
+ *         ::mtree::functions::euclidean_distance.
+ * @tparam SplitFunction The type of the function that will be used to split a
+ *         node when it is at its maximum capacity and a new child must be
+ *         added. By default, it is a composition of
+ *         ::mtree::functions::random_promotion and
+ *         ::mtree::functions::balanced_partition.
+ *
+ *
+ * @bug There should be a way of specifying a Compare type and value for @c Data
+ *      instead of implicitly using @c std::less<Data>.
+ *
+ * @bug There should be a way of using unordered instead of ordered @c Data (by
+ *      using @c std::unordered_set instead of @c std::set and @c
+ *      std::unordered_map instead of @c std::map.
+ */
 template <
 	typename Data,
-	typename DistanceFunction = functions::euclidean_distance,
-	typename SplitFunction = functions::split_function<
-			functions::random_promotion,
-			functions::balanced_partition
+	typename DistanceFunction = ::mtree::functions::euclidean_distance,
+	typename SplitFunction = ::mtree::functions::split_function<
+	        ::mtree::functions::random_promotion,
+	        ::mtree::functions::balanced_partition
 		>
 >
 class mtree {
@@ -81,6 +97,23 @@ public:
 	};
 
 
+	/**
+	 * @brief A container-like class which can be iterated to fetch the results
+	 *        of a nearest-neighbors query.
+	 * @details The neighbors are presented in non-decreasing order from the
+	 *          @c queryData argument to the mtree::get_nearest() call.
+	 *
+	 *          The query on the M-Tree is executed during the iteration, as the
+	 *          results are fetched. It means that, by the time when the @a n-th
+	 *          result is fetched, not all results are known, and the resources
+	 *          allocated were only the necessary to identify the @a n first
+	 *          results.
+	 *
+	 *          The objects in the container are mtree::query_result instances,
+	 *          which contain a data object and the distance from the query
+	 *          data object.
+	 * @see mtree::get_nearest()
+	 */
 	class query {
 	public:
 		typedef result_item value_type;
@@ -317,30 +350,56 @@ public:
 
 
 
-	enum { DEFAULT_MIN_NODE_CAPACITY = 50 };
+	enum {
+		/**
+		 * @brief The default minimum capacity of nodes in an M-Tree, when not
+		 * specified in the constructor call.
+		 */
+		DEFAULT_MIN_NODE_CAPACITY = 50
+	};
 
 
+	/**
+	 * The main constructor of an M-Tree.
+	 *
+	 * @param min_node_capacity The minimum capacity of the nodes of an M-Tree.
+	 *        Should be at least 2.
+	 * @param max_node_capacity The maximum capacity of the nodes of an M-Tree.
+	 *        Should be greater than @c min_node_capacity. If -1 is passed, then
+	 *        the value <code>2*min_node_capacity - 1</code> is used.
+	 * @param distance_function An instance of @c DistanceFunction.
+	 * @param split_function An instance of @c SplitFunction.
+	 *
+	 */
 	explicit mtree(
-			size_t minNodeCapacity = DEFAULT_MIN_NODE_CAPACITY,
-			size_t maxNodeCapacity = -1,
-			DistanceFunction distance_function = DistanceFunction(),
-			SplitFunction split_function = SplitFunction()
+			size_t min_node_capacity = DEFAULT_MIN_NODE_CAPACITY,
+			size_t max_node_capacity = -1,
+			const DistanceFunction& distance_function = DistanceFunction(),
+			const SplitFunction& split_function = SplitFunction()
 		)
-		: minNodeCapacity(minNodeCapacity),
-		  maxNodeCapacity(maxNodeCapacity),
+		: minNodeCapacity(min_node_capacity),
+		  maxNodeCapacity(max_node_capacity),
 		  root(NULL),
 		  distance_function(distance_function),
 		  split_function(split_function)
 	{
-		if(maxNodeCapacity == size_t(-1)) {
-			this->maxNodeCapacity = 2 * minNodeCapacity - 1;
+		if(max_node_capacity == size_t(-1)) {
+			this->maxNodeCapacity = 2 * min_node_capacity - 1;
 		}
 	}
 
 	// Cannot copy!
+	/**
+	 * @brief <span style="color:red">Deleted</span> copy constructor.
+	 * @details It cannot be used!
+	 */
 	mtree(const mtree&) = delete;
 
 	// ... but moving is ok.
+	/**
+	 * @brief Move constructor.
+	 * @param that An M-Tree rvalue reference.
+	 */
 	mtree(mtree&& that)
 		: root(that.root),
 		  maxNodeCapacity(that.maxNodeCapacity),
@@ -351,23 +410,44 @@ public:
 		that.root = 0;
 	}
 
-	virtual ~mtree() {
+
+	/**
+	 * @brief The destructor.
+	 */
+	~mtree() {
 		delete root;
 	}
 
 	// Cannot copy!
+	/**
+	 * @brief <span style="color:red">Deleted</span> copy assignment.
+	 * @details It cannot be used!
+	 */
 	mtree& operator=(const mtree&) = delete;
 
 	// ... but moving is ok.
+	/**
+	 * @brief Move assignment.
+	 * @param that An M-Tree rvalue reference.
+	 */
 	mtree& operator=(mtree&& that) {
-		std::swap(this->root, that.root);
-		this->minNodeCapacity = that.minNodeCapacity;
-		this->maxNodeCapacity = that.maxNodeCapacity;
-		this->distance_function = that.distance_function;
-		this->split_function = that.split_function;
+		if(&that != this) {
+			std::swap(this->root, that.root);
+			this->minNodeCapacity = that.minNodeCapacity;
+			this->maxNodeCapacity = that.maxNodeCapacity;
+			this->distance_function = that.distance_function;
+			this->split_function = that.split_function;
+		}
 		return *this;
 	}
 
+
+	/**
+	 * @brief Adds and indexes a data object.
+	 * @details An object that is already indexed should not be added. There is
+	 *          no validation, and the behavior is undefined if done.
+	 * @param data The data object to index.
+	 */
 	void add(const Data& data) {
 		if(root == NULL) {
 			root = new RootLeafNode(data);
@@ -390,6 +470,11 @@ public:
 	}
 
 
+	/**
+	 * @brief Removes a data object from the M-Tree.
+	 * @param data The data object to be removed.
+	 * @return @c true if and only if the object was found.
+	 */
 	bool remove(const Data& data) {
 		if(root == NULL) {
 			return false;
@@ -408,18 +493,46 @@ public:
 	}
 
 
+	/**
+	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
+	 *        distance.
+	 * @param queryData The query data object.
+	 * @param range The maximum distance from @c queryData to fetched neighbors.
+	 * @return A @c query object.
+	 */
 	query get_nearest_by_range(const Data& queryData, double range) const {
 		return get_nearest(queryData, range, std::numeric_limits<unsigned int>::max());
 	}
 
+	/**
+	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
+	 *        the number of neighbors.
+	 * @param queryData The query data object.
+	 * @param limit The maximum number of neighbors to fetch.
+	 * @return A @c query object.
+	 */
 	query get_nearest_by_limit(const Data& queryData, size_t limit) const {
 		return get_nearest(queryData, std::numeric_limits<double>::infinity(), limit);
 	}
 
+	/**
+	 * @brief Performs a nearest-neighbor query on the M-Tree, constrained by
+	 *        distance and/or the number of neighbors.
+	 * @param queryData The query data object.
+	 * @param range The maximum distance from @c queryData to fetched neighbors.
+	 * @param limit The maximum number of neighbors to fetch.
+	 * @return A @c query object.
+	 */
 	query get_nearest(const Data& queryData, double range, size_t limit) const {
 		return {this, queryData, range, limit};
 	}
 
+	/**
+	 * @brief Performs a nearest-neighbor query on the M-Tree, without
+	 *        constraints.
+	 * @param queryData The query data object.
+	 * @return A @c query object.
+	 */
 	query get_nearest(const Data& queryData) const {
 		return {
 			this,
@@ -432,11 +545,11 @@ public:
 protected:
 
 	void _check() const {
-		IF_DEBUG(
+#ifndef NDEBUG
 			if(root != NULL) {
 				root->_check(this);
 			}
-		)
+#endif
 	}
 
 private:
@@ -510,7 +623,8 @@ private:
 			checkMaxCapacity(mtree);
 		}
 
-		IF_DEBUG(size_t _check(const mtree* mtree) const {
+#ifndef NDEBUG
+		size_t _check(const mtree* mtree) const {
 			IndexItem::_check(mtree);
 			_checkMinCapacity(mtree);
 			_checkMaxCapacity(mtree);
@@ -518,7 +632,9 @@ private:
 			bool   childHeightKnown = false;
 			size_t childHeight;
 			for(typename ChildrenMap::const_iterator i = children.begin(); i != children.end(); ++i) {
-				IF_DEBUG(const Data& data = i->first);
+#ifndef NDEBUG
+				const Data& data = i->first;
+#endif
 				IndexItem* child = i->second;
 
 				assert(child->data == data);
@@ -535,7 +651,8 @@ private:
 			}
 
 			return childHeight + 1;
-		})
+		}
+#endif
 
 		typedef std::map<Data, IndexItem*> ChildrenMap;
 
@@ -628,7 +745,8 @@ private:
 		virtual void _checkChildClass(IndexItem* child) const = 0;
 
 	private:
-		IF_DEBUG(void _checkChildMetrics(IndexItem* child, const mtree* mtree) const {
+#ifndef NDEBUG
+		void _checkChildMetrics(IndexItem* child, const mtree* mtree) const {
 			double dist = mtree->distance_function(child->data, this->data);
 			assert(child->distanceToParent == dist);
 
@@ -638,7 +756,8 @@ private:
 			 */
 			double sum = child->distanceToParent + child->radius;
 			assert(sum <= this->radius);
-		})
+		}
+#endif
 	};
 
 
@@ -730,7 +849,9 @@ private:
 				updateRadius(child);
 			} catch(SplitNodeReplacement& e) {
 				// Replace current child with new nodes
-				IF_DEBUG(size_t _ =)
+#ifndef NDEBUG
+				size_t _ =
+#endif
 					this->children.erase(child->data);
 				assert(_ == 1);
 				delete child;
@@ -782,7 +903,9 @@ private:
 					try {
 						existingChild->checkMaxCapacity(mtree);
 					} catch(SplitNodeReplacement& e) {
-						IF_DEBUG(size_t _ =)
+#ifndef NDEBUG
+						size_t _ =
+#endif
 							this->children.erase(existingChild->data);
 						assert(_ == 1);
 						delete existingChild;
@@ -883,7 +1006,9 @@ private:
 					}
 				}
 
-				IF_DEBUG(size_t _ =)
+#ifndef NDEBUG
+				size_t _ =
+#endif
 					nearestDonor->children.erase(nearestGrandchild->data);
 				assert(_ == 1);
 				theChild->addChild(nearestGrandchild, nearestGrandchildDistance, mtree);
@@ -984,8 +1109,6 @@ private:
 
 } /* namespace mtree */
 
-
-#undef IF_DEBUG
 
 
 #endif /* MTREE_H_ */
