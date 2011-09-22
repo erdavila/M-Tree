@@ -149,6 +149,177 @@ public:
 		_test(fixtureName.c_str());
 	}
 
+
+	void testIterators() {
+		struct DistanceFunction {
+			size_t operator()(int a, int b) const {
+				return std::abs(a - b);
+			}
+		};
+
+		mtree::mtree<int, DistanceFunction> mt;
+
+		mt.add(1);
+		mt.add(2);
+		mt.add(3);
+		mt.add(4);
+
+		auto query = mt.get_nearest(0);
+
+#define assertBeginEnd(ITER, BEGIN, END);   \
+        assert(ITER BEGIN query.begin());   \
+        assert(ITER END   query.end());
+
+#define assertIter(ITER, BEGIN, END, DATA, DIST)   \
+		assertBeginEnd(ITER, BEGIN, END);          \
+        assertEqual(ITER->data, DATA);             \
+        assertEqual(ITER->distance, DIST)
+
+#define assertCompareIters(I1, C12, I2, C23, I3, C31, I1_)   \
+        assert(I1 C12 I2);                                   \
+        assert(I2 C23 I3);                                   \
+        assert(I3 C31 I1_)
+
+		// The first iterator
+		auto i1 = query.begin();
+		/*     1  2  3  4  e
+		 * i1: *
+		 */
+		assertIter(i1, ==, !=, 1, 1);
+
+		// Advance the iterator
+		i1++;
+		/*     1  2  3  4  e
+		 * i1:    *
+		 */
+		assertIter(i1, !=, !=, 2, 2);
+
+		// Advance again
+		++i1;
+		/*     1  2  3  4  e
+		 * i1:       *
+		 */
+		assertIter(i1, !=, !=, 3, 3);
+
+		// Begin another iteration
+		auto i2 = query.begin();
+		/*     1  2  3  4  e
+		 * i1:       *
+		 * i2: *
+		 */
+		assertIter(i2, ==, !=, 1, 1);
+		assert(i2 != i1);
+		// The first iterator must not have been affected
+		assertIter(i1, !=, !=, 3, 3);
+
+		// Copy the first iterator
+		auto i3 = i1;
+		/*     1  2  3  4  e
+		 * i1:       *
+		 * i2: *
+		 * i3:       *
+		 */
+		assertIter(i3, !=, !=, 3, 3);
+		// The first iterator must not have been affected
+		assertIter(i1, !=, !=, 3, 3);
+		// The second iterator must not have been affected
+		assertIter(i2, ==, !=, 1, 1);
+		// Compare the iterators
+		assertCompareIters(i1, !=, i2, !=, i3, ==, i1);
+
+		// Now continue until all the iterators reach the end
+		++i2;
+		/*     1  2  3  4  e
+		 * i1:       *
+		 * i2:    *
+		 * i3:       *
+		 */
+		assertIter(i1, !=, !=, 3, 3);
+		assertIter(i2, !=, !=, 2, 2);
+		assertIter(i3, !=, !=, 3, 3);
+		assertCompareIters(i1, !=, i2, !=, i3, ==, i1);
+
+		i1++;
+		/*     1  2  3  4  e
+		 * i1:          *
+		 * i2:    *
+		 * i3:       *
+		 */
+		assertIter(i1, !=, !=, 4, 4);
+		assertIter(i2, !=, !=, 2, 2);
+		assertIter(i3, !=, !=, 3, 3);
+		assertCompareIters(i1, !=, i2, !=, i3, !=, i1);
+
+		i2++;
+		/*     1  2  3  4  e
+		 * i1:          *
+		 * i2:       *
+		 * i3:       *
+		 */
+		assertIter(i1, !=, !=, 4, 4);
+		assertIter(i2, !=, !=, 3, 3);
+		assertIter(i3, !=, !=, 3, 3);
+		assertCompareIters(i1, !=, i2, ==, i3, !=, i1);
+
+		++i3;
+		/*     1  2  3  4  e
+		 * i1:          *
+		 * i2:       *
+		 * i3:          *
+		 */
+		assertIter(i1, !=, !=, 4, 4);
+		assertIter(i2, !=, !=, 3, 3);
+		assertIter(i3, !=, !=, 4, 4);
+		assertCompareIters(i1, !=, i2, !=, i3, ==, i1);
+
+		i3++;
+		/*     1  2  3  4  e
+		 * i1:          *
+		 * i2:       *
+		 * i3:             *
+		 */
+		assertIter(i1, !=, !=, 4, 4);
+		assertIter(i2, !=, !=, 3, 3);
+		assertBeginEnd(i3, !=, ==);
+		assertCompareIters(i1, !=, i2, !=, i3, !=, i1);
+
+		++i2;
+		/*     1  2  3  4  e
+		 * i1:          *
+		 * i2:          *
+		 * i3:             *
+		 */
+		assertIter(i1, !=, !=, 4, 4);
+		assertIter(i2, !=, !=, 4, 4);
+		assertBeginEnd(i3, !=, ==);
+		assertCompareIters(i1, ==, i2, !=, i3, !=, i1);
+
+		++i2;
+		/*     1  2  3  4  e
+		 * i1:          *
+		 * i2:             *
+		 * i3:             *
+		 */
+		assertIter(i1, !=, !=, 4, 4);
+		assertBeginEnd(i2, !=, ==);
+		assertBeginEnd(i3, !=, ==);
+		assertCompareIters(i1, !=, i2, ==, i3, !=, i1);
+
+		++i1;
+		/*     1  2  3  4  e
+		 * i1:             *
+		 * i2:             *
+		 * i3:             *
+		 */
+		assertBeginEnd(i1, !=, ==);
+		assertBeginEnd(i2, !=, ==);
+		assertBeginEnd(i3, !=, ==);
+		assertCompareIters(i1, ==, i2, ==, i3, ==, i1);
+#undef assertIter
+#undef assertCompareIters
+	}
+
+
 private:
 	typedef vector<MTreeTest::result_item> ResultsVector;
 
@@ -304,6 +475,7 @@ int main() {
 	RUN_TEST(testGeneratedCase01);
 	RUN_TEST(testGeneratedCase02);
 	RUN_TEST(testNotRandom);
+	RUN_TEST(testIterators);
 #undef RUN_TEST
 
 	cout << "DONE" << endl;

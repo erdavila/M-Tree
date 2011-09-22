@@ -420,6 +420,15 @@ public:
 		return {this, queryData, range, limit};
 	}
 
+	query get_nearest(const Data& queryData) const {
+		return {
+			this,
+			queryData,
+			std::numeric_limits<double>::infinity(),
+			std::numeric_limits<unsigned int>::max()
+		};
+	}
+
 protected:
 
 	void _check() const {
