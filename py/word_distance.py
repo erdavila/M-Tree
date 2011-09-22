@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys
 import time
-from mtree import MTreeBase
+from mtree import MTree
 
 
 #DICT_FILE = 'pt-br.dic'
@@ -57,7 +57,7 @@ def main():
 	
 	words_limit = int(sys.argv[1])
 	
-	mtree = MTreeBase(distance_function=word_distance)
+	mtree = MTree(distance_function=word_distance)
 	
 	loaded_words = 0
 	t = Timer()

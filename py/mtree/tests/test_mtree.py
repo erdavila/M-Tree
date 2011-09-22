@@ -4,7 +4,7 @@ import sys
 
 import mtree.tests.fixtures as fixtures
 import mtree.tests.fixtures.generator as generator
-from mtree import MTreeBase
+from mtree import MTree
 import mtree.functions as f
 
 
@@ -19,7 +19,7 @@ class Test(unittest.TestCase):
 			return data_objects[0], data_objects[-1]
 		
 		
-		self.mtree = MTreeBase(
+		self.mtree = MTree(
 				min_node_capacity=2,
 				max_node_capacity=3,
 				split_function=f.make_split_function(not_random_promotion, f.balanced_partition)
@@ -123,7 +123,7 @@ class Test(unittest.TestCase):
 			self._test('fRandom')
 		except:
 			print >>sys.stderr, "WARNING: The random test (fRandom) failed."
-			print >>sys.stderr, "Investigate it, fix MTreeBase and then convert"
+			print >>sys.stderr, "Investigate it, fix MTree and then convert"
 			print >>sys.stderr, "the random test to a permanent test case."
 			raise
 		else:
@@ -179,7 +179,7 @@ class Test(unittest.TestCase):
 			
 			# Check if every item in the results came from the generated query_data
 			self.assertIn(data, self.all_data)
-			self.assertTrue(isinstance(item, MTreeBase.ResultItem), item)
+			self.assertTrue(isinstance(item, MTree.ResultItem), item)
 			
 			# Check if every item in the results is within the range
 			self.assertLessEqual(distance, radius)
@@ -215,7 +215,7 @@ class Test(unittest.TestCase):
 
 			# Check if every item in the results came from the generated query_data
 			self.assertIn(data, self.all_data)
-			self.assertTrue(isinstance(item, MTreeBase.ResultItem))
+			self.assertTrue(isinstance(item, MTree.ResultItem))
 			
 			# Check if items are not repeated
 			self.assertEqual(1, nearest_result.count(item))

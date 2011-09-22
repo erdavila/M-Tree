@@ -2,7 +2,7 @@
 import random
 import sys
 import time
-from mtree import MTreeBase
+from mtree import MTree
 import word_distance
 import itertools
 
@@ -30,7 +30,7 @@ timing = time.time
 
 def create_mtree(words, min_node_capacity):
 	print >>sys.stderr, "Creating M-Tree with min_node_capacity=%r" % min_node_capacity
-	mtree = MTreeBase(min_node_capacity=min_node_capacity, distance_function = word_distance.word_distance)
+	mtree = MTree(min_node_capacity=min_node_capacity, distance_function = word_distance.word_distance)
 	print >>sys.stderr, "Adding words...",
 	b = timing()
 	for n, word in enumerate(words, 1):

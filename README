@@ -14,7 +14,7 @@ of resulting items, or both. The algorithm processes the results as needed, as
 the resulting items are fetched. The results are returned in non-decreasing distance
 from the query data parameter.
 
-MTreeBase is the core class that implements an m-tree. The data objects can be
+MTree is the core class that implements an m-tree. The data objects can be
 any object that are understood by the distance function.
 Some examples:
  * Data objects could be N-dimensional-space coordinates and the distance function
@@ -22,8 +22,8 @@ Some examples:
  * Data objects could be regular strings and the distance function could calculate
    the edit (Levenshtein) distance between two strings.
 The distance function must be provided by the user.
-Two equal objects should not be added to the same MTreeBase instance. There are
-no validation regarding this and, if done, the behavior of the tree is undefined.
+Two equal objects should not be added to the same MTree instance. There is no
+validation regarding this and, if done, the behavior of the tree is undefined.
 
 Given a data object type and a distance function, some aspects can directly
 impact the performance of an m-tree: the constraints on the number of children for
@@ -41,15 +41,15 @@ There are some pre-defined implementations for promotion and partition functions
 and the user can implement new ones at will.
 
 
-The yet-to-be-implemented MTree class wraps an MTreeBase and a mapping structure,
+The yet-to-be-implemented MTreeDict class wraps an MTree and a mapping structure,
 so it helps on keeping track of objects already added. The data objects work
-as keys for associated value objects, so MTree can be used as a dictionary.
+as keys for associated value objects, so MTreeDict can be used as a dictionary.
 
 
-The yet-to-be-implemented MultiMTree works like the MTree, but allows associating
-more than one value object to the same key. The number of values associated to
-the same key are taken into account when performing queries constrained by the
-number of results.
+The yet-to-be-implemented MTreeMultiDict works like the MTreeDict, but allows
+associating more than one value object to the same key. The number of values
+associated to the same key are taken into account when performing queries
+constrained by the number of results.
 
 
 

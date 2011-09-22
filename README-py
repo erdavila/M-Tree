@@ -2,11 +2,11 @@ The implementation of the m-tree is on the module named mtree and the module
 mtree.functions contains some support functions.
 
 
-mtree.MTreeBase - The class that implements the m-tree data structure.
+mtree.MTree - The class that implements the m-tree data structure.
 	The data objects must be any hashable object and the support functions
 	(distance and split functions) must understand them.
 	
-	mtree.MTreeBase(min_node_capacity, max_node_capacity, distance_function, split_function)
+	mtree.MTree(min_node_capacity, max_node_capacity, distance_function, split_function)
 		All the constructor arguments are optional:
 		 * min_node_capacity - Specifies the minimum number of children for each
 		   node. Must be at least 2, and the default is 50.
@@ -27,14 +27,14 @@ mtree.MTreeBase - The class that implements the m-tree data structure.
 		   The default value for split_function is a composition of the functions
 		   mtree.functions.random_promotion and mtree.functions.balanced_partition.
 	
-	mtree.MTreeBase.add(data)
-		Adds and indexes a data object. The behavior of the m-tree becames undefined
+	mtree.MTree.add(data)
+		Adds and indexes a data object. The behavior of the m-tree becomes undefined
 		if the data was already add.
 	
-	mtree.MTreeBase.remove(data)
+	mtree.MTree.remove(data)
 		Removes a data object from the index. Raises KeyError if the object is not found.
 	
-	mtree.MTreeBase.get_nearest(query_data[, range][, limit])
+	mtree.MTree.get_nearest(query_data[, range][, limit])
 		Returns an iterator which yields the results of the query. Each result
 		is a namedtuple with a data object (result.data) and its distance from
 		the query_data. The results are returned in non-decreasing distance and
