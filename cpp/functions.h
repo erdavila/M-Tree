@@ -9,7 +9,7 @@
 #include <vector>
 
 
-namespace mtree {
+namespace mt {
 namespace functions {
 
 

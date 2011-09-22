@@ -21,7 +21,7 @@ using namespace std;
 
 typedef vector<int> Data;
 typedef set<Data> DataSet;
-typedef mtree::functions::cached_distance_function<Data, mtree::functions::euclidean_distance> CachedDistanceFunction;
+typedef mt::functions::cached_distance_function<Data, mt::functions::euclidean_distance> CachedDistanceFunction;
 typedef pair<Data, Data>(*PromotionFunction)(const DataSet&, CachedDistanceFunction&);
 
 PromotionFunction nonRandomPromotion =
@@ -32,12 +32,12 @@ PromotionFunction nonRandomPromotion =
 	};
 
 
-typedef mtree::mtree<
+typedef mt::mtree<
 		Data,
-		mtree::functions::euclidean_distance,
-		mtree::functions::split_function<
+		mt::functions::euclidean_distance,
+		mt::functions::split_function<
 				PromotionFunction,
-				mtree::functions::balanced_partition
+				mt::functions::balanced_partition
 			>
 	>
 	MTree;
@@ -157,7 +157,7 @@ public:
 			}
 		};
 
-		mtree::mtree<int, DistanceFunction> mt;
+		mt::mtree<int, DistanceFunction> mt;
 
 		mt.add(1);
 		mt.add(2);

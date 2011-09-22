@@ -11,7 +11,7 @@
 
 
 
-namespace mtree {
+namespace mt {
 
 
 
@@ -23,12 +23,12 @@ namespace mtree {
  *         by @c std::less<Data>.
  * @tparam DistanceFunction The type of the function that will be used to
  *         calculate the distance between two @c Data objects. By default, it is
- *         ::mtree::functions::euclidean_distance.
+ *         ::mt::functions::euclidean_distance.
  * @tparam SplitFunction The type of the function that will be used to split a
  *         node when it is at its maximum capacity and a new child must be
  *         added. By default, it is a composition of
- *         ::mtree::functions::random_promotion and
- *         ::mtree::functions::balanced_partition.
+ *         ::mt::functions::random_promotion and
+ *         ::mt::functions::balanced_partition.
  *
  *
  * @bug There should be a way of specifying a Compare type and value for @c Data
@@ -40,10 +40,10 @@ namespace mtree {
  */
 template <
 	typename Data,
-	typename DistanceFunction = ::mtree::functions::euclidean_distance,
-	typename SplitFunction = ::mtree::functions::split_function<
-	        ::mtree::functions::random_promotion,
-	        ::mtree::functions::balanced_partition
+	typename DistanceFunction = ::mt::functions::euclidean_distance,
+	typename SplitFunction = ::mt::functions::split_function<
+	        ::mt::functions::random_promotion,
+	        ::mt::functions::balanced_partition
 		>
 >
 class mtree {
