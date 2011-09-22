@@ -3,5 +3,10 @@
 	classes MTreeDict/mtree_map - With [] operator.
 	classes MTreeMultiDict/mtree_multimap.
 
-
 - Implement other support functions suggested in the article.
+
+- C++: Documentation with Doxygen (http://www.stack.nl/~dimitri/doxygen/).
+
+- Python: Documentation (http://docs.python.org/documenting/index.html).
+
+- Java: Implementation.
