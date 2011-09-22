@@ -1,3 +1,6 @@
+// Doesn't make sense to compile this without assertions!
+#undef NDEBUG
+
 #include <algorithm>
 #include <iostream>
 #include <set>
@@ -12,49 +15,61 @@
 #define assertLessEqual(A, B)         assert(A <= B);
 #define assertIn(ELEM, CONTAINER)     assert(CONTAINER.find(ELEM) != CONTAINER.end());
 #define assertNotIn(ELEM, CONTAINER)  assert(CONTAINER.find(ELEM) == CONTAINER.end());
-#define assertRaises(EX, CODE)        try{CODE;assert(false);}catch(EX){}
 
 using namespace std;
 
 
 typedef vector<int> Data;
+typedef set<Data> DataSet;
+typedef mtree::functions::cached_distance_function<Data, mtree::functions::euclidean_distance> CachedDistanceFunction;
+typedef pair<Data, Data>(*PromotionFunction)(const DataSet&, CachedDistanceFunction&);
 
-
-class MTreeBaseTest : public mtree::MTreeBase<Data> {
-public:
-	MTreeBaseTest() : MTreeBase<Data>(2) { }
-
-	void add(const Data& data) {
-		try {
-			MTreeBase<Data>::add(data);
-		} catch(...) {
-			// Check even if an exception is thrown
-			_check();
-			throw;
-		}
-		_check();
-	}
-
-	void remove(const Data& data) throw (DataNotFound) {
-		try {
-			MTreeBase<Data>::remove(data);
-		} catch(...) {
-			// Check even if an exception is thrown
-			_check();
-			throw;
-		}
-		_check();
-	}
-
-	double distanceFunction(const Data& data1, const Data& data2) const {
-		return mtree::functions::euclideanDistance(data1, data2);
-	}
-
-protected:
-	virtual PromotedPair promotionFunction(const DataSet& dataSet, CachedDistanceFunction& cachedDistanceFunction) const {
-		std::vector<Data> dataObjects(dataSet.begin(), dataSet.end());
+PromotionFunction nonRandomPromotion =
+	[](const DataSet& dataSet, CachedDistanceFunction&) -> pair<Data, Data> {
+		vector<Data> dataObjects(dataSet.begin(), dataSet.end());
 		sort(dataObjects.begin(), dataObjects.end());
 		return {dataObjects.front(), dataObjects.back()};
+	};
+
+
+typedef mtree::mtree<
+		Data,
+		mtree::functions::euclidean_distance,
+		mtree::functions::split_function<
+				PromotionFunction,
+				mtree::functions::balanced_partition
+			>
+	>
+	MTree;
+
+
+class MTreeTest : public MTree {
+private:
+	struct OnExit {
+		MTreeTest* mt;
+		OnExit(MTreeTest* mt) : mt(mt) {}
+		~OnExit() { mt->_check(); }
+	};
+
+public:
+	// Turning the member public
+	using MTree::distance_function;
+
+	MTreeTest()
+		: MTree(2, -1,
+				distance_function_type(),
+				split_function_type(nonRandomPromotion)
+			)
+		{}
+
+	void add(const Data& data) {
+		OnExit onExit(this);
+		return MTree::add(data);
+	}
+
+	bool remove(const Data& data) {
+		OnExit onExit(this);
+		return MTree::remove(data);
 	}
 };
 
@@ -92,26 +107,26 @@ public:
 
 	void testRemoveNonExisting() {
 		// Empty
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		// With some items
 		mtree.add({4, 44});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({95, 43});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({76, 21});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({64, 53});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({47, 3});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 
 		mtree.add({26, 11});
-		assertRaises(MTreeBaseTest::DataNotFound, mtree.remove({99, 77}));
+		assert(!mtree.remove({99, 77}));
 	}
 
 
@@ -135,9 +150,9 @@ public:
 	}
 
 private:
-	typedef vector<MTreeBaseTest::ResultItem> ResultsVector;
+	typedef vector<MTreeTest::result_item> ResultsVector;
 
-	MTreeBaseTest mtree;
+	MTreeTest mtree;
 	set<Data> allData;
 
 
@@ -154,10 +169,12 @@ private:
 				allData.insert(i->data);
 				mtree.add(i->data);
 				break;
-			case 'R':
+			case 'R': {
 				allData.erase(i->data);
-				mtree.remove(i->data);
+				bool removed = mtree.remove(i->data);
+				assert(removed);
 				break;
+			}
 			default:
 				cerr << i->cmd << endl;
 				assert(false);
@@ -173,9 +190,10 @@ private:
 	void _checkNearestByRange(const Data& queryData, double radius) const {
 		ResultsVector results;
 		set<Data> strippedResults;
-		MTreeBaseTest::ResultsIterator i = mtree.getNearestByRange(queryData, radius);
-		for(; i != mtree.resultsEnd(); i++) {
-			MTreeBaseTest::ResultItem r = *i;
+		MTreeTest::query query = mtree.get_nearest_by_range(queryData, radius);
+
+		for(MTreeTest::query::iterator i = query.begin(); i != query.end(); ++i) {
+			MTreeTest::query::value_type r = *i;
 			results.push_back(r);
 			strippedResults.insert(r.data);
 		}
@@ -192,11 +210,11 @@ private:
 
 			// Check if every item in the results is within the range
 			assertLessEqual(i->distance, radius);
-			assertEqual(mtree.distanceFunction(i->data, queryData), i->distance);
+			assertEqual(mtree.distance_function(i->data, queryData), i->distance);
 		}
 
 		for(set<Data>::const_iterator data = allData.begin(); data != allData.end(); ++data) {
-			double distance = mtree.distanceFunction(*data, queryData);
+			double distance = mtree.distance_function(*data, queryData);
 			if(distance <= radius) {
 				assertIn(*data, strippedResults);
 			} else {
@@ -209,9 +227,9 @@ private:
 	void _checkNearestByLimit(const Data& queryData, unsigned int limit) const {
 		ResultsVector results;
 		set<Data> strippedResults;
-		MTreeBaseTest::ResultsIterator i = mtree.getNearestByLimit(queryData, limit);
-		for(; i != mtree.resultsEnd(); i++) {
-			MTreeBaseTest::ResultItem r = *i;
+		MTreeTest::query query = mtree.get_nearest_by_limit(queryData, limit);
+		for(MTreeTest::query::iterator i = query.begin(); i != query.end(); i++) {
+			MTreeTest::result_item r = *i;
 			results.push_back(r);
 			strippedResults.insert(r.data);
 		}
@@ -236,13 +254,13 @@ private:
 			// Check if items are not repeated
 			assertEqual(1, count(strippedResults.begin(), strippedResults.end(), i->data));
 
-			double distance = mtree.distanceFunction(i->data, queryData);
+			double distance = mtree.distance_function(i->data, queryData);
 			assertEqual(distance, i->distance);
 			farthest = max(farthest, distance);
 		}
 
 		for(set<Data>::iterator pData = allData.begin(); pData != allData.end(); ++pData) {
-			double distance = mtree.distanceFunction(*pData, queryData);
+			double distance = mtree.distance_function(*pData, queryData);
 			if(distance < farthest) {
 				assertIn(*pData, strippedResults);
 			} else if(distance > farthest) {

@@ -31,7 +31,7 @@ int main(int argc, const char* argv[]) {
 		getline(f, line);
 
 		if(!line.empty()  &&  line[0] != '%') {
-			//word = unicode(line.strip(), 'utf-8')	TODO: review
+			//word = unicode(line.strip(), 'utf-8')	TODO: implement encoding
 			auto word = line;
 			mtree.add(word);
 			loadedWords++;
@@ -49,7 +49,7 @@ int main(int argc, const char* argv[]) {
 	printf("TIMES: %0.2fuser %0.02fsys %0.2freal\n\n", times.user, times.sys, times.real);
 
 	while(true) {
-		//word = unicode(raw_input("Type a word: "), 'utf-8')	TODO: review
+		//word = unicode(raw_input("Type a word: "), 'utf-8')	TODO: implement encoding
 		cout << "Type a word: ";
 		string word;
 		getline(cin, word);
@@ -58,7 +58,8 @@ int main(int argc, const char* argv[]) {
 		}
 
 		Timer t;
-		for(auto i = mtree.getNearestByLimit(word, 10); i != mtree.resultsEnd(); ++i) {
+		auto query = mtree.get_nearest_by_limit(word, 10);
+		for(auto i = query.begin(); i != query.end(); ++i) {
 			cout << "\t" << i->distance << " " << i->data << endl;
 		}
 		Timer::Times times = t.getTimes();

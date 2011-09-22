@@ -1,0 +1,36 @@
+Turn the C++ implementation more like a STL implementation.
+
+- Lowercase class names.
+
+- Lowercase method names.
+
+- Do not throw exceptions.
+
+- MTreeBase will turn to mtree.
+
+- Default support functions turned into classes with operator().
+
+- Instead of having to subclass to define new support functions (distance, split,
+  promotion, partition), use template arguments:
+	template <
+  		typename Data,
+		typename DistanceFunction=euclidean_distance_function,
+		typename SplitFunction=split_function<random_promotion, balanced_partition>
+	>
+	class mtree {
+	public:
+		// New constructor
+		mtree_base(
+			size_t minNodeCapacity=50,
+			size_t maxNodeCapacity=-1,
+			DistanceFunction distance_function=DistanceFunction(),
+			SplitFunction split_function=SplitFunction()
+		);
+	...
+	};
+
+- Implement a container-like result set, instead of returning directly an interator:
+	auto results = mt.getNearest(...);
+	for(auto i = results.begin(); i != results.end(); ++i) {
+		...
+	}
