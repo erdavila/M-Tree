@@ -321,7 +321,7 @@ public:
 
 
 private:
-	typedef vector<MTreeTest::result_item> ResultsVector;
+	typedef vector<MTreeTest::query::result_item> ResultsVector;
 
 	MTreeTest mtree;
 	set<Data> allData;
@@ -400,7 +400,7 @@ private:
 		set<Data> strippedResults;
 		MTreeTest::query query = mtree.get_nearest_by_limit(queryData, limit);
 		for(MTreeTest::query::iterator i = query.begin(); i != query.end(); i++) {
-			MTreeTest::result_item r = *i;
+			MTreeTest::query::result_item r = *i;
 			results.push_back(r);
 			strippedResults.insert(r.data);
 		}

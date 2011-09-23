@@ -85,29 +85,17 @@ private:
 
 public:
 
-	class result_item {
-	public:
-		Data data;
-		double distance;
-
-		result_item() = default;
-		result_item(const result_item&) = default;
-		~result_item() = default;
-		result_item& operator=(const result_item&) = default;
-	};
-
-
 	/**
 	 * @brief A container-like class which can be iterated to fetch the results
 	 *        of a nearest-neighbors query.
 	 * @details The neighbors are presented in non-decreasing order from the
-	 *          @c queryData argument to the mtree::get_nearest() call.
+	 *          @c query_data argument to the mtree::get_nearest() call.
 	 *
 	 *          The query on the M-Tree is executed during the iteration, as the
 	 *          results are fetched. It means that, by the time when the @a n-th
-	 *          result is fetched, not all results are known, and the resources
-	 *          allocated were only the necessary to identify the @a n first
-	 *          results.
+	 *          result is fetched, the next result may still not be known, and
+	 *          the resources allocated were only the necessary to identify the
+	 *          @a n first results.
 	 *
 	 *          The objects in the container are mtree::query_result instances,
 	 *          which contain a data object and the distance from the query
@@ -116,13 +104,58 @@ public:
 	 */
 	class query {
 	public:
+
+		/**
+		 * @brief The type of the results for nearest-neighbor queries.
+		 */
+		class result_item {
+		public:
+			/** @brief A nearest-neighbor */
+			Data data;
+
+			/** @brief The distance from the nearest-neighbor to the query data
+			 *         object parameter.
+			 */
+			double distance;
+
+			/** @brief Default constructor */
+			result_item() = default;
+
+			/** @brief Copy constructor */
+			result_item(const result_item&) = default;
+
+			/** @brief Move constructor */
+			result_item(result_item&&) = default;
+
+			~result_item() = default;
+
+			/** @brief Copy assignment */
+			result_item& operator=(const result_item&) = default;
+
+			/** @brief Move assignment */
+			result_item& operator=(result_item&& ri) {
+				if(this != &ri) {
+					data = std::move(ri.data);
+					distance = ri.distance;
+				}
+				return *this;
+			}
+		};
+
+
 		typedef result_item value_type;
 
 
 		query() = delete;
 
+		/**
+		 * @brief Copy constructor.
+		 */
 		query(const query&) = default;
 
+		/**
+		 * @brief Move constructor.
+		 */
 		query(query&&) = default;
 
 		query(const mtree* _mtree, const Data& data, double range, size_t limit)
@@ -130,20 +163,26 @@ public:
 			{}
 
 
+		/** @brief Copy assignment. */
 		query& operator=(const query&) = default;
 
-		query& operator=(query&& that) {
-			// Trivial data is copied
-			this->_mtree = that._mtree;
-			this->range = that.range;
-			this->limit = that.limit;
-			// Potential complex data is swapped
-			std::swap(this->data, that.data);
-
+		/** @brief Move assignment. */
+		query& operator=(query&& q) {
+			if(this != &q) {
+				this->_mtree = q._mtree;
+				this->range = q.range;
+				this->limit = q.limit;
+				this->data = std::move(q.data);
+			}
 			return *this;
 		}
 
 
+
+		/**
+		 * @brief The iterator for accessing the results of nearest-neighbor
+		 *        queries.
+		 */
 		class iterator {
 		public:
 			typedef std::input_iterator_tag iterator_category;
@@ -156,7 +195,7 @@ public:
 			iterator() : isEnd(true) {}
 
 
-			iterator(const query* _query)
+			explicit iterator(const query* _query)
 				: _query(_query),
 				  isEnd(false),
 				  yieldedCount(0)
@@ -176,27 +215,28 @@ public:
 			}
 
 
+			/** @brief Copy constructor. */
 			iterator(const iterator&) = default;
 
+			/** @brief Move constructor. */
 			iterator(iterator&&) = default;
 
 			~iterator() = default;
 
+			/** @brief Copy assignment. */
 			iterator& operator=(const iterator&) = default;
 
-			iterator& operator=(iterator&& that) {
-				// Simple data is copied
-				// Potential complex data is swapped
-
-				this->_query = that._query;
-				std::swap(this->currentResultItem.data, that.currentResultItem.data);
-				this->currentResultItem.distance = that.currentResultItem.distance;
-				this->isEnd = that.isEnd;
-				std::swap(this->pendingQueue, that.pendingQueue);
-				this->nextPendingMinDistance = that.nextPendingMinDistance;
-				std::swap(this->nearestQueue, that.nearestQueue);
-				this->yieldedCount = that.yieldedCount;
-
+			/** @brief Move assignment. */
+			iterator& operator=(iterator&& i) {
+				if(this != &i) {
+					this->_query = i._query;
+					this->currentResultItem = std::move(i.currentResultItem);
+					this->isEnd = i.isEnd;
+					this->pendingQueue = std::move(i.pendingQueue);
+					this->nextPendingMinDistance = i.nextPendingMinDistance;
+					this->nearestQueue = std::move(i.nearestQueue);
+					this->yieldedCount = i.yieldedCount;
+				}
 				return *this;
 			}
 
@@ -218,6 +258,11 @@ public:
 				return ! this->operator==(ri);
 			}
 
+
+			/**
+			 * @brief Advance the iterator to the next result.
+			 */
+			//@{
 			// prefix
 			iterator& operator++() {
 				fetchNext();
@@ -230,7 +275,16 @@ public:
 				operator++();
 				return aCopy;
 			}
+			//@}
 
+
+			/**
+			 * @brief Gives access to the current query result.
+			 * @details The result accessed from an iterator is always the same
+			 *          instance; only its fields are update when the iterator
+			 *          changes.
+			 */
+			//@{
 			const result_item& operator*() const {
 				return currentResultItem;
 			}
@@ -238,6 +292,7 @@ public:
 			const result_item* operator->() const {
 				return &currentResultItem;
 			}
+			//@}
 
 		private:
 			template <typename U>
@@ -321,7 +376,7 @@ public:
 				return false;
 			}
 
-		private:
+
 			const query* _query;
 			result_item currentResultItem;
 			bool isEnd;
@@ -332,11 +387,19 @@ public:
 		};
 
 
+		/**
+		 * @brief Begins the execution of the query and returns an interator
+		 *        which refers to the first result.
+		 */
 		iterator begin() const {
 			return iterator(this);
 		}
 
 
+		/**
+		 * @brief Returns an iterator which informs that there are no more
+		 *        results.
+		 */
 		iterator end() const {
 			return {};
 		}
@@ -360,7 +423,7 @@ public:
 
 
 	/**
-	 * The main constructor of an M-Tree.
+	 * @brief The main constructor of an M-Tree.
 	 *
 	 * @param min_node_capacity The minimum capacity of the nodes of an M-Tree.
 	 *        Should be at least 2.
@@ -389,17 +452,10 @@ public:
 	}
 
 	// Cannot copy!
-	/**
-	 * @brief <span style="color:red">Deleted</span> copy constructor.
-	 * @details It cannot be used!
-	 */
 	mtree(const mtree&) = delete;
 
 	// ... but moving is ok.
-	/**
-	 * @brief Move constructor.
-	 * @param that An M-Tree rvalue reference.
-	 */
+	/** @brief Move constructor. */
 	mtree(mtree&& that)
 		: root(that.root),
 		  maxNodeCapacity(that.maxNodeCapacity),
@@ -407,36 +463,26 @@ public:
 		  distance_function(that.distance_function),
 		  split_function(that.split_function)
 	{
-		that.root = 0;
+		that.root = NULL;
 	}
 
 
-	/**
-	 * @brief The destructor.
-	 */
 	~mtree() {
 		delete root;
 	}
 
 	// Cannot copy!
-	/**
-	 * @brief <span style="color:red">Deleted</span> copy assignment.
-	 * @details It cannot be used!
-	 */
 	mtree& operator=(const mtree&) = delete;
 
 	// ... but moving is ok.
-	/**
-	 * @brief Move assignment.
-	 * @param that An M-Tree rvalue reference.
-	 */
+	/** @brief Move assignment. */
 	mtree& operator=(mtree&& that) {
 		if(&that != this) {
 			std::swap(this->root, that.root);
 			this->minNodeCapacity = that.minNodeCapacity;
 			this->maxNodeCapacity = that.maxNodeCapacity;
-			this->distance_function = that.distance_function;
-			this->split_function = that.split_function;
+			this->distance_function = std::move(that.distance_function);
+			this->split_function = std::move(that.split_function);
 		}
 		return *this;
 	}
@@ -496,47 +542,47 @@ public:
 	/**
 	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
 	 *        distance.
-	 * @param queryData The query data object.
-	 * @param range The maximum distance from @c queryData to fetched neighbors.
+	 * @param query_data The query data object.
+	 * @param range The maximum distance from @c query_data to fetched neighbors.
 	 * @return A @c query object.
 	 */
-	query get_nearest_by_range(const Data& queryData, double range) const {
-		return get_nearest(queryData, range, std::numeric_limits<unsigned int>::max());
+	query get_nearest_by_range(const Data& query_data, double range) const {
+		return get_nearest(query_data, range, std::numeric_limits<unsigned int>::max());
 	}
 
 	/**
 	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
 	 *        the number of neighbors.
-	 * @param queryData The query data object.
+	 * @param query_data The query data object.
 	 * @param limit The maximum number of neighbors to fetch.
 	 * @return A @c query object.
 	 */
-	query get_nearest_by_limit(const Data& queryData, size_t limit) const {
-		return get_nearest(queryData, std::numeric_limits<double>::infinity(), limit);
+	query get_nearest_by_limit(const Data& query_data, size_t limit) const {
+		return get_nearest(query_data, std::numeric_limits<double>::infinity(), limit);
 	}
 
 	/**
 	 * @brief Performs a nearest-neighbor query on the M-Tree, constrained by
 	 *        distance and/or the number of neighbors.
-	 * @param queryData The query data object.
-	 * @param range The maximum distance from @c queryData to fetched neighbors.
+	 * @param query_data The query data object.
+	 * @param range The maximum distance from @c query_data to fetched neighbors.
 	 * @param limit The maximum number of neighbors to fetch.
 	 * @return A @c query object.
 	 */
-	query get_nearest(const Data& queryData, double range, size_t limit) const {
-		return {this, queryData, range, limit};
+	query get_nearest(const Data& query_data, double range, size_t limit) const {
+		return {this, query_data, range, limit};
 	}
 
 	/**
 	 * @brief Performs a nearest-neighbor query on the M-Tree, without
 	 *        constraints.
-	 * @param queryData The query data object.
+	 * @param query_data The query data object.
 	 * @return A @c query object.
 	 */
-	query get_nearest(const Data& queryData) const {
+	query get_nearest(const Data& query_data) const {
 		return {
 			this,
-			queryData,
+			query_data,
 			std::numeric_limits<double>::infinity(),
 			std::numeric_limits<unsigned int>::max()
 		};
