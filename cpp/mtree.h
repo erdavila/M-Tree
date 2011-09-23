@@ -31,12 +31,12 @@ namespace mt {
  *         ::mt::functions::balanced_partition.
  *
  *
- * @bug There should be a way of specifying a Compare type and value for @c Data
- *      instead of implicitly using @c std::less<Data>.
+ * @todo Include a @c Compare template and constructor parameters instead of
+ *       implicitly using @c std::less<Data> on @c stc::set and @c std::map.
  *
- * @bug There should be a way of using unordered instead of ordered @c Data (by
- *      using @c std::unordered_set instead of @c std::set and @c
- *      std::unordered_map instead of @c std::map.
+ * @todo Implement an @c unordered_mtree class which uses @c std::unordered_set
+ *      and @c std::unordered_map instead of @c std::set and @c std::map
+ *      respectively.
  */
 template <
 	typename Data,
@@ -280,9 +280,9 @@ public:
 
 			/**
 			 * @brief Gives access to the current query result.
-			 * @details The result accessed from an iterator is always the same
-			 *          instance; only its fields are update when the iterator
-			 *          changes.
+			 * @details An iterator instance always refers to the same
+			 *          result_item instance; only the fields of the result_item
+			 *          are updated when the iterator changes.
 			 */
 			//@{
 			const result_item& operator*() const {
