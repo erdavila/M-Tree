@@ -44,7 +44,7 @@ size_t wordDistance(std::string word1, std::string word2) {
 
 
 
-typedef mtree::mtree<std::string, size_t(*)(std::string,std::string)> MTree;
+typedef mt::mtree<std::string, size_t(*)(std::string,std::string)> MTree;
 class WordMTree : public MTree {
 public:
 	WordMTree(WordMTree&&);

@@ -10,24 +10,40 @@
 #include "functions.h"
 
 
-#ifdef NDEBUG
-# define IF_DEBUG(X)
-#else
-# define IF_DEBUG(X) X
-#endif
+
+namespace mt {
 
 
 
-namespace mtree {
-
-
-
+/**
+ * @brief The main class that implements the M-Tree.
+ *
+ * @tparam Data The type of data that will be indexed by the M-Tree. This type
+ *         must be an assignable type and a strict weak ordering must be defined
+ *         by @c std::less<Data>.
+ * @tparam DistanceFunction The type of the function that will be used to
+ *         calculate the distance between two @c Data objects. By default, it is
+ *         ::mt::functions::euclidean_distance.
+ * @tparam SplitFunction The type of the function that will be used to split a
+ *         node when it is at its maximum capacity and a new child must be
+ *         added. By default, it is a composition of
+ *         ::mt::functions::random_promotion and
+ *         ::mt::functions::balanced_partition.
+ *
+ *
+ * @todo Include a @c Compare template and constructor parameters instead of
+ *       implicitly using @c std::less<Data> on @c stc::set and @c std::map.
+ *
+ * @todo Implement an @c unordered_mtree class which uses @c std::unordered_set
+ *      and @c std::unordered_map instead of @c std::set and @c std::map
+ *      respectively.
+ */
 template <
 	typename Data,
-	typename DistanceFunction = functions::euclidean_distance,
-	typename SplitFunction = functions::split_function<
-			functions::random_promotion,
-			functions::balanced_partition
+	typename DistanceFunction = ::mt::functions::euclidean_distance,
+	typename SplitFunction = ::mt::functions::split_function<
+	        ::mt::functions::random_promotion,
+	        ::mt::functions::balanced_partition
 		>
 >
 class mtree {
@@ -69,27 +85,77 @@ private:
 
 public:
 
-	class result_item {
-	public:
-		Data data;
-		double distance;
-
-		result_item() = default;
-		result_item(const result_item&) = default;
-		~result_item() = default;
-		result_item& operator=(const result_item&) = default;
-	};
-
-
+	/**
+	 * @brief A container-like class which can be iterated to fetch the results
+	 *        of a nearest-neighbors query.
+	 * @details The neighbors are presented in non-decreasing order from the
+	 *          @c query_data argument to the mtree::get_nearest() call.
+	 *
+	 *          The query on the M-Tree is executed during the iteration, as the
+	 *          results are fetched. It means that, by the time when the @a n-th
+	 *          result is fetched, the next result may still not be known, and
+	 *          the resources allocated were only the necessary to identify the
+	 *          @a n first results.
+	 *
+	 *          The objects in the container are mtree::query_result instances,
+	 *          which contain a data object and the distance from the query
+	 *          data object.
+	 * @see mtree::get_nearest()
+	 */
 	class query {
 	public:
+
+		/**
+		 * @brief The type of the results for nearest-neighbor queries.
+		 */
+		class result_item {
+		public:
+			/** @brief A nearest-neighbor */
+			Data data;
+
+			/** @brief The distance from the nearest-neighbor to the query data
+			 *         object parameter.
+			 */
+			double distance;
+
+			/** @brief Default constructor */
+			result_item() = default;
+
+			/** @brief Copy constructor */
+			result_item(const result_item&) = default;
+
+			/** @brief Move constructor */
+			result_item(result_item&&) = default;
+
+			~result_item() = default;
+
+			/** @brief Copy assignment */
+			result_item& operator=(const result_item&) = default;
+
+			/** @brief Move assignment */
+			result_item& operator=(result_item&& ri) {
+				if(this != &ri) {
+					data = std::move(ri.data);
+					distance = ri.distance;
+				}
+				return *this;
+			}
+		};
+
+
 		typedef result_item value_type;
 
 
 		query() = delete;
 
+		/**
+		 * @brief Copy constructor.
+		 */
 		query(const query&) = default;
 
+		/**
+		 * @brief Move constructor.
+		 */
 		query(query&&) = default;
 
 		query(const mtree* _mtree, const Data& data, double range, size_t limit)
@@ -97,20 +163,26 @@ public:
 			{}
 
 
+		/** @brief Copy assignment. */
 		query& operator=(const query&) = default;
 
-		query& operator=(query&& that) {
-			// Trivial data is copied
-			this->_mtree = that._mtree;
-			this->range = that.range;
-			this->limit = that.limit;
-			// Potential complex data is swapped
-			std::swap(this->data, that.data);
-
+		/** @brief Move assignment. */
+		query& operator=(query&& q) {
+			if(this != &q) {
+				this->_mtree = q._mtree;
+				this->range = q.range;
+				this->limit = q.limit;
+				this->data = std::move(q.data);
+			}
 			return *this;
 		}
 
 
+
+		/**
+		 * @brief The iterator for accessing the results of nearest-neighbor
+		 *        queries.
+		 */
 		class iterator {
 		public:
 			typedef std::input_iterator_tag iterator_category;
@@ -123,7 +195,7 @@ public:
 			iterator() : isEnd(true) {}
 
 
-			iterator(const query* _query)
+			explicit iterator(const query* _query)
 				: _query(_query),
 				  isEnd(false),
 				  yieldedCount(0)
@@ -143,27 +215,28 @@ public:
 			}
 
 
+			/** @brief Copy constructor. */
 			iterator(const iterator&) = default;
 
+			/** @brief Move constructor. */
 			iterator(iterator&&) = default;
 
 			~iterator() = default;
 
+			/** @brief Copy assignment. */
 			iterator& operator=(const iterator&) = default;
 
-			iterator& operator=(iterator&& that) {
-				// Simple data is copied
-				// Potential complex data is swapped
-
-				this->_query = that._query;
-				std::swap(this->currentResultItem.data, that.currentResultItem.data);
-				this->currentResultItem.distance = that.currentResultItem.distance;
-				this->isEnd = that.isEnd;
-				std::swap(this->pendingQueue, that.pendingQueue);
-				this->nextPendingMinDistance = that.nextPendingMinDistance;
-				std::swap(this->nearestQueue, that.nearestQueue);
-				this->yieldedCount = that.yieldedCount;
-
+			/** @brief Move assignment. */
+			iterator& operator=(iterator&& i) {
+				if(this != &i) {
+					this->_query = i._query;
+					this->currentResultItem = std::move(i.currentResultItem);
+					this->isEnd = i.isEnd;
+					this->pendingQueue = std::move(i.pendingQueue);
+					this->nextPendingMinDistance = i.nextPendingMinDistance;
+					this->nearestQueue = std::move(i.nearestQueue);
+					this->yieldedCount = i.yieldedCount;
+				}
 				return *this;
 			}
 
@@ -185,6 +258,11 @@ public:
 				return ! this->operator==(ri);
 			}
 
+
+			/**
+			 * @brief Advance the iterator to the next result.
+			 */
+			//@{
 			// prefix
 			iterator& operator++() {
 				fetchNext();
@@ -197,7 +275,16 @@ public:
 				operator++();
 				return aCopy;
 			}
+			//@}
 
+
+			/**
+			 * @brief Gives access to the current query result.
+			 * @details An iterator instance always refers to the same
+			 *          result_item instance; only the fields of the result_item
+			 *          are updated when the iterator changes.
+			 */
+			//@{
 			const result_item& operator*() const {
 				return currentResultItem;
 			}
@@ -205,6 +292,7 @@ public:
 			const result_item* operator->() const {
 				return &currentResultItem;
 			}
+			//@}
 
 		private:
 			template <typename U>
@@ -288,7 +376,7 @@ public:
 				return false;
 			}
 
-		private:
+
 			const query* _query;
 			result_item currentResultItem;
 			bool isEnd;
@@ -299,11 +387,19 @@ public:
 		};
 
 
+		/**
+		 * @brief Begins the execution of the query and returns an interator
+		 *        which refers to the first result.
+		 */
 		iterator begin() const {
 			return iterator(this);
 		}
 
 
+		/**
+		 * @brief Returns an iterator which informs that there are no more
+		 *        results.
+		 */
 		iterator end() const {
 			return {};
 		}
@@ -317,23 +413,41 @@ public:
 
 
 
-	enum { DEFAULT_MIN_NODE_CAPACITY = 50 };
+	enum {
+		/**
+		 * @brief The default minimum capacity of nodes in an M-Tree, when not
+		 * specified in the constructor call.
+		 */
+		DEFAULT_MIN_NODE_CAPACITY = 50
+	};
 
 
+	/**
+	 * @brief The main constructor of an M-Tree.
+	 *
+	 * @param min_node_capacity The minimum capacity of the nodes of an M-Tree.
+	 *        Should be at least 2.
+	 * @param max_node_capacity The maximum capacity of the nodes of an M-Tree.
+	 *        Should be greater than @c min_node_capacity. If -1 is passed, then
+	 *        the value <code>2*min_node_capacity - 1</code> is used.
+	 * @param distance_function An instance of @c DistanceFunction.
+	 * @param split_function An instance of @c SplitFunction.
+	 *
+	 */
 	explicit mtree(
-			size_t minNodeCapacity = DEFAULT_MIN_NODE_CAPACITY,
-			size_t maxNodeCapacity = -1,
-			DistanceFunction distance_function = DistanceFunction(),
-			SplitFunction split_function = SplitFunction()
+			size_t min_node_capacity = DEFAULT_MIN_NODE_CAPACITY,
+			size_t max_node_capacity = -1,
+			const DistanceFunction& distance_function = DistanceFunction(),
+			const SplitFunction& split_function = SplitFunction()
 		)
-		: minNodeCapacity(minNodeCapacity),
-		  maxNodeCapacity(maxNodeCapacity),
+		: minNodeCapacity(min_node_capacity),
+		  maxNodeCapacity(max_node_capacity),
 		  root(NULL),
 		  distance_function(distance_function),
 		  split_function(split_function)
 	{
-		if(maxNodeCapacity == size_t(-1)) {
-			this->maxNodeCapacity = 2 * minNodeCapacity - 1;
+		if(max_node_capacity == size_t(-1)) {
+			this->maxNodeCapacity = 2 * min_node_capacity - 1;
 		}
 	}
 
@@ -341,6 +455,7 @@ public:
 	mtree(const mtree&) = delete;
 
 	// ... but moving is ok.
+	/** @brief Move constructor. */
 	mtree(mtree&& that)
 		: root(that.root),
 		  maxNodeCapacity(that.maxNodeCapacity),
@@ -348,10 +463,11 @@ public:
 		  distance_function(that.distance_function),
 		  split_function(that.split_function)
 	{
-		that.root = 0;
+		that.root = NULL;
 	}
 
-	virtual ~mtree() {
+
+	~mtree() {
 		delete root;
 	}
 
@@ -359,15 +475,25 @@ public:
 	mtree& operator=(const mtree&) = delete;
 
 	// ... but moving is ok.
+	/** @brief Move assignment. */
 	mtree& operator=(mtree&& that) {
-		std::swap(this->root, that.root);
-		this->minNodeCapacity = that.minNodeCapacity;
-		this->maxNodeCapacity = that.maxNodeCapacity;
-		this->distance_function = that.distance_function;
-		this->split_function = that.split_function;
+		if(&that != this) {
+			std::swap(this->root, that.root);
+			this->minNodeCapacity = that.minNodeCapacity;
+			this->maxNodeCapacity = that.maxNodeCapacity;
+			this->distance_function = std::move(that.distance_function);
+			this->split_function = std::move(that.split_function);
+		}
 		return *this;
 	}
 
+
+	/**
+	 * @brief Adds and indexes a data object.
+	 * @details An object that is already indexed should not be added. There is
+	 *          no validation, and the behavior is undefined if done.
+	 * @param data The data object to index.
+	 */
 	void add(const Data& data) {
 		if(root == NULL) {
 			root = new RootLeafNode(data);
@@ -390,6 +516,11 @@ public:
 	}
 
 
+	/**
+	 * @brief Removes a data object from the M-Tree.
+	 * @param data The data object to be removed.
+	 * @return @c true if and only if the object was found.
+	 */
 	bool remove(const Data& data) {
 		if(root == NULL) {
 			return false;
@@ -408,22 +539,50 @@ public:
 	}
 
 
-	query get_nearest_by_range(const Data& queryData, double range) const {
-		return get_nearest(queryData, range, std::numeric_limits<unsigned int>::max());
+	/**
+	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
+	 *        distance.
+	 * @param query_data The query data object.
+	 * @param range The maximum distance from @c query_data to fetched neighbors.
+	 * @return A @c query object.
+	 */
+	query get_nearest_by_range(const Data& query_data, double range) const {
+		return get_nearest(query_data, range, std::numeric_limits<unsigned int>::max());
 	}
 
-	query get_nearest_by_limit(const Data& queryData, size_t limit) const {
-		return get_nearest(queryData, std::numeric_limits<double>::infinity(), limit);
+	/**
+	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
+	 *        the number of neighbors.
+	 * @param query_data The query data object.
+	 * @param limit The maximum number of neighbors to fetch.
+	 * @return A @c query object.
+	 */
+	query get_nearest_by_limit(const Data& query_data, size_t limit) const {
+		return get_nearest(query_data, std::numeric_limits<double>::infinity(), limit);
 	}
 
-	query get_nearest(const Data& queryData, double range, size_t limit) const {
-		return {this, queryData, range, limit};
+	/**
+	 * @brief Performs a nearest-neighbor query on the M-Tree, constrained by
+	 *        distance and/or the number of neighbors.
+	 * @param query_data The query data object.
+	 * @param range The maximum distance from @c query_data to fetched neighbors.
+	 * @param limit The maximum number of neighbors to fetch.
+	 * @return A @c query object.
+	 */
+	query get_nearest(const Data& query_data, double range, size_t limit) const {
+		return {this, query_data, range, limit};
 	}
 
-	query get_nearest(const Data& queryData) const {
+	/**
+	 * @brief Performs a nearest-neighbor query on the M-Tree, without
+	 *        constraints.
+	 * @param query_data The query data object.
+	 * @return A @c query object.
+	 */
+	query get_nearest(const Data& query_data) const {
 		return {
 			this,
-			queryData,
+			query_data,
 			std::numeric_limits<double>::infinity(),
 			std::numeric_limits<unsigned int>::max()
 		};
@@ -432,11 +591,11 @@ public:
 protected:
 
 	void _check() const {
-		IF_DEBUG(
+#ifndef NDEBUG
 			if(root != NULL) {
 				root->_check(this);
 			}
-		)
+#endif
 	}
 
 private:
@@ -510,7 +669,8 @@ private:
 			checkMaxCapacity(mtree);
 		}
 
-		IF_DEBUG(size_t _check(const mtree* mtree) const {
+#ifndef NDEBUG
+		size_t _check(const mtree* mtree) const {
 			IndexItem::_check(mtree);
 			_checkMinCapacity(mtree);
 			_checkMaxCapacity(mtree);
@@ -518,7 +678,9 @@ private:
 			bool   childHeightKnown = false;
 			size_t childHeight;
 			for(typename ChildrenMap::const_iterator i = children.begin(); i != children.end(); ++i) {
-				IF_DEBUG(const Data& data = i->first);
+#ifndef NDEBUG
+				const Data& data = i->first;
+#endif
 				IndexItem* child = i->second;
 
 				assert(child->data == data);
@@ -535,7 +697,8 @@ private:
 			}
 
 			return childHeight + 1;
-		})
+		}
+#endif
 
 		typedef std::map<Data, IndexItem*> ChildrenMap;
 
@@ -628,7 +791,8 @@ private:
 		virtual void _checkChildClass(IndexItem* child) const = 0;
 
 	private:
-		IF_DEBUG(void _checkChildMetrics(IndexItem* child, const mtree* mtree) const {
+#ifndef NDEBUG
+		void _checkChildMetrics(IndexItem* child, const mtree* mtree) const {
 			double dist = mtree->distance_function(child->data, this->data);
 			assert(child->distanceToParent == dist);
 
@@ -638,7 +802,8 @@ private:
 			 */
 			double sum = child->distanceToParent + child->radius;
 			assert(sum <= this->radius);
-		})
+		}
+#endif
 	};
 
 
@@ -730,7 +895,9 @@ private:
 				updateRadius(child);
 			} catch(SplitNodeReplacement& e) {
 				// Replace current child with new nodes
-				IF_DEBUG(size_t _ =)
+#ifndef NDEBUG
+				size_t _ =
+#endif
 					this->children.erase(child->data);
 				assert(_ == 1);
 				delete child;
@@ -782,7 +949,9 @@ private:
 					try {
 						existingChild->checkMaxCapacity(mtree);
 					} catch(SplitNodeReplacement& e) {
-						IF_DEBUG(size_t _ =)
+#ifndef NDEBUG
+						size_t _ =
+#endif
 							this->children.erase(existingChild->data);
 						assert(_ == 1);
 						delete existingChild;
@@ -883,7 +1052,9 @@ private:
 					}
 				}
 
-				IF_DEBUG(size_t _ =)
+#ifndef NDEBUG
+				size_t _ =
+#endif
 					nearestDonor->children.erase(nearestGrandchild->data);
 				assert(_ == 1);
 				theChild->addChild(nearestGrandchild, nearestGrandchildDistance, mtree);
@@ -984,8 +1155,6 @@ private:
 
 } /* namespace mtree */
 
-
-#undef IF_DEBUG
 
 
 #endif /* MTREE_H_ */
