@@ -363,12 +363,12 @@ public class MTree<DATA> {
 				throw new RuntimeException("Should never happen!");
 			}
 		} else {
-			throw new RuntimeException("Not implemented");
-			/*
-			double distance = distance_function(data, root->data);
+			double distance = distanceFunction.calculate(data, root.data);
 			try {
-				root->addData(data, distance, this);
-			} catch(SplitNodeReplacement& e) {
+				root.addData(data, distance);
+			} catch(SplitNodeReplacement e) {
+				throw new RuntimeException("Not implemented");
+				/*
 				Node* newRoot = new RootNode(root->data);
 				delete root;
 				root = newRoot;
@@ -377,8 +377,8 @@ public class MTree<DATA> {
 					double distance = distance_function(root->data, newNode->data);
 					root->addChild(newNode, distance, this);
 				}
+				 */
 			}
-			*/
 		}
 	}
 
