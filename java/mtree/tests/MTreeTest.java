@@ -3,15 +3,19 @@ package mtree.tests;
 import static org.junit.Assert.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import mtree.DistanceFunction;
+import mtree.DistanceFunctions;
 import mtree.MTree;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
 
 
 /*
@@ -40,30 +44,37 @@ typedef mt::mtree<
 
 */
 
-class MTreeClass extends MTree<int[]> {
+class MTreeClass extends MTree<Data> {
 
 	/*
 public:
 	// Turning the member public
 	using MTree::distance_function;
+	 */
 
-	MTreeTest()
-		: MTree(2, -1,
-				distance_function_type(),
-				split_function_type(nonRandomPromotion)
-			)
-		{}
-
-	void add(const Data& data) {
-		OnExit onExit(this);
-		return MTree::add(data);
+	MTreeClass() {
+		super(2, DistanceFunctions.EUCLIDEAN);
 	}
 
-	bool remove(const Data& data) {
-		OnExit onExit(this);
-		return MTree::remove(data);
+	public void add(Data data) {
+		try {
+			super.add(data);
+		} finally {
+			_check();
+		}
 	}
-	*/
+
+	public boolean remove(Data data) {
+		try {
+			return super.remove(data);
+		} finally {
+			_check();
+		}
+	}
+	
+	DistanceFunction<? super Data> getDistanceFunction() {
+		return distanceFunction;
+	}
 };
 
 
@@ -80,14 +91,15 @@ public class MTreeTest {
 
 	@Test
 	public void testEmpty() {
-		_checkNearestByRange(new int[]{1, 2, 3}, 4);
-		_checkNearestByLimit(new int[]{1, 2, 3}, 4);
+		_checkNearestByRange(new Data(1, 2, 3), 4);
+		_checkNearestByLimit(new Data(1, 2, 3), 4);
 	}
+	
+	@Test public void test01() { _test("f01"); }
 
 /*
 
 public:
-	void test01() { _test("f01"); }
 	void test02() { _test("f02"); }
 	void test03() { _test("f03"); }
 	void test04() { _test("f04"); }
@@ -331,44 +343,40 @@ private:
 
 	private MTreeClass mtree = new MTreeClass();
 	
-	private Set<int[]> allData = new HashSet<int[]>();
+	private Set<Data> allData = new HashSet<Data>();
 	
-	/*
 
-	void _test(const char* fixtureName) {
-		Fixture fixture = Fixture::load(fixtureName);
+	
+	private void _test(String fixtureName) {
+		Fixture fixture = Fixture.load(fixtureName);
 		_testFixture(fixture);
 	}
 
 
-	void _testFixture(const Fixture& fixture) {
-		for(vector<Fixture::Action>::const_iterator i = fixture.actions.begin(); i != fixture.actions.end(); ++i) {
-			switch(i->cmd) {
+	private void _testFixture(Fixture fixture) {
+		for(Fixture.Action action : fixture.actions) {
+			switch(action.cmd) {
 			case 'A':
-				allData.insert(i->data);
-				mtree.add(i->data);
+				allData.add(action.data);
+				mtree.add(action.data);
 				break;
-			case 'R': {
-				allData.erase(i->data);
-				bool removed = mtree.remove(i->data);
-				assert(removed);
+			case 'R':
+				allData.remove(action.data);
+				boolean removed = mtree.remove(action.data);
+				assert removed;
 				break;
-			}
 			default:
-				cerr << i->cmd << endl;
-				assert(false);
-				break;
+				throw new RuntimeException(Character.toString(action.cmd));
 			}
 
-			_checkNearestByRange(i->queryData, i->radius);
-			_checkNearestByLimit(i->queryData, i->limit);
+			_checkNearestByRange(action.queryData, action.radius);
+			_checkNearestByLimit(action.queryData, action.limit);
 		}
 	}
-	*/
 
-	private void _checkNearestByRange(int[] queryData, double radius) {
+	private void _checkNearestByRange(Data queryData, double radius) {
 		List<MTreeClass.ResultItem> results = new ArrayList<MTreeClass.ResultItem>();
-		Set<int[]> strippedResults = new HashSet<int[]>();
+		Set<Data> strippedResults = new HashSet<Data>();
 		MTreeClass.Query query = mtree.getNearestByRange(queryData, radius);
 
 		for(MTreeClass.ResultItem ri : query) {
@@ -379,38 +387,32 @@ private:
 		double previousDistance = 0;
 
 		for(MTreeClass.ResultItem result : results) {
-			throw new RuntimeException("Not implemented");
-			/*
 			// Check if increasing distance
-			assertLessEqual(previousDistance, i->distance);
-			previousDistance = i->distance;
-
+			assertTrue(previousDistance <= result.distance);
+			previousDistance = result.distance;
+			
 			// Check if every item in the results came from the generated queryData
-			assertIn(i->data, allData);
+			assertTrue(allData.contains(result.data));
 
 			// Check if every item in the results is within the range
-			assertLessEqual(i->distance, radius);
-			assertEqual(mtree.distance_function(i->data, queryData), i->distance);
-			*/
+			assertTrue(result.distance <= radius);
+			assertEquals(mtree.getDistanceFunction().calculate(result.data, queryData), result.distance, 0.0);
 		}
 
-		for(int[] data : allData) {
-			throw new RuntimeException("Not implemented");
-			/*
-			double distance = mtree.distance_function(*data, queryData);
+		for(Data data : allData) {
+			double distance = mtree.getDistanceFunction().calculate(data, queryData);
 			if(distance <= radius) {
-				assertIn(*data, strippedResults);
+				assertTrue(strippedResults.contains(data));
 			} else {
-				assertNotIn(*data, strippedResults);
+				assertTrue(!strippedResults.contains(data));
 			}
-			*/
 		}
 	}
 
 
-	private void _checkNearestByLimit(int[] queryData, int limit) {
+	private void _checkNearestByLimit(Data queryData, int limit) {
 		List<MTreeClass.ResultItem> results = new ArrayList<MTreeClass.ResultItem>();
-		Set<int[]> strippedResults = new HashSet<int[]>();
+		Set<Data> strippedResults = new HashSet<Data>();
 		MTreeClass.Query query = mtree.getNearestByLimit(queryData, limit);
 
 		for(MTreeClass.ResultItem ri : query) {
@@ -428,35 +430,29 @@ private:
 		double farthest = 0.0;
 		double previousDistance = 0.0;
 		for(MTreeClass.ResultItem ri : results) {
-			throw new RuntimeException("Not implemented");
-			/*
 			// Check if increasing distance
-			assertLessEqual(previousDistance, i->distance);
-			previousDistance = i->distance;
+			assertTrue(previousDistance <= ri.distance);
+			previousDistance = ri.distance;
 
 			// Check if every item in the results came from the generated queryData
-			assertIn(i->data, allData);
+			assertTrue(allData.contains(ri.data));
 
 			// Check if items are not repeated
-			assertEqual(1, count(strippedResults.begin(), strippedResults.end(), i->data));
+			assertEquals(1, Collections.frequency(strippedResults, ri.data));
 
-			double distance = mtree.distance_function(i->data, queryData);
-			assertEqual(distance, i->distance);
-			farthest = max(farthest, distance);
-			*/
+			double distance = mtree.getDistanceFunction().calculate(ri.data, queryData);
+			assertEquals(distance, ri.distance, 0.0);
+			farthest = Math.max(farthest, distance);
 		}
-		for(int[] data : allData) {
-			throw new RuntimeException("Not implemented");
-			/*
-			double distance = mtree.distance_function(*pData, queryData);
+		for(Data data : allData) {
+			double distance = mtree.getDistanceFunction().calculate(data, queryData);
 			if(distance < farthest) {
-				assertIn(*pData, strippedResults);
+				assertTrue(strippedResults.contains(data));
 			} else if(distance > farthest) {
-				assertNotIn(*pData, strippedResults);
+				assertTrue(!strippedResults.contains(data));
 			} else {
 				// distance == farthest
 			}
-			*/
 		}
 	}
 }

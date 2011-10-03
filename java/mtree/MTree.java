@@ -1,12 +1,13 @@
 package mtree;
 
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 
 
-/*
-/**
+/* *
  * @brief The main class that implements the M-Tree.
  *
  * @tparam Data The type of data that will be indexed by the M-Tree. This type
@@ -28,71 +29,31 @@ import java.util.PriorityQueue;
  * @todo Implement an @c unordered_mtree class which uses @c std::unordered_set
  *      and @c std::unordered_map instead of @c std::set and @c std::map
  *      respectively.
- * /
-template <
-	typename Data,
-	typename DistanceFunction = ::mt::functions::euclidean_distance,
-	typename SplitFunction = ::mt::functions::split_function<
-	        ::mt::functions::random_promotion,
-	        ::mt::functions::balanced_partition
-		>
->
-*/
-public class MTree <Data> {
+ */
+public class MTree<DATA> {
 
-	/**
+	/* *
 	 * The type of the results for nearest-neighbor queries.
 	 */
 	public class ResultItem {
-		/** A nearest-neighbor. */
-		public Data data;
-
-		/*
-	public:
-		/** @brief The distance from the nearest-neighbor to the query data
-		 *         object parameter.
-		 * /
-		double distance;
-
-		/** @brief Default constructor * /
-		result_item() = default;
-
-		/** @brief Copy constructor * /
-		result_item(const result_item&) = default;
-
-		/** @brief Move constructor * /
-		result_item(result_item&&) = default;
-
-		~result_item() = default;
-
-		/** @brief Copy assignment * /
-		result_item& operator=(const result_item&) = default;
-
-		/** @brief Move assignment * /
-		result_item& operator=(result_item&& ri) {
-			if(this != &ri) {
-				data = std::move(ri.data);
-				distance = ri.distance;
-			}
-			return *this;
+		public ResultItem(DATA data, double distance) {
+			this.data = data;
+			this.distance = distance;
 		}
-		*/
+
+		/* * A nearest-neighbor. */
+		public DATA data;
+
+		/* * @brief The distance from the nearest-neighbor to the query data
+		 *         object parameter.
+		 */
+		public double distance;
 	}
 	
 	
-	/*
-public:
-	typedef DistanceFunction distance_function_type;
-	typedef SplitFunction    split_function_type;
-	typedef functions::cached_distance_function<Data, DistanceFunction> cached_distance_function_type;
-
-private:
-	class Node;
-	class Entry;
-
-
 	// Exception classes
-	class SplitNodeReplacement {
+	private static class SplitNodeReplacement extends Exception {
+		/*
 	public:
 		enum { NUM_NODES = 2 };
 		Node* newNodes[NUM_NODES];
@@ -102,25 +63,34 @@ private:
 			}
 
 		}
-	};
+		*/
+	}
+	
+	private static class RootNodeReplacement extends Exception {
+		// A subclass of Throwable cannot be generic.  :-(
+		// So, we have newRoot declared as Object instead of Node.
+		private Object newRoot;
+		
+		private RootNodeReplacement(Object newRoot) {
+			this.newRoot = newRoot;
+		}
+	}
 
-	class RootNodeReplacement {
-	public:
-		Node* newRoot;
-	};
+	
+	private static class NodeUnderCapacity extends Exception { }
+	
 
-	class NodeUnderCapacity { };
+	private static class DataNotFound extends Exception {
+		// A subclass of Throwable cannot be generic.  :-(
+		// So, we have data declared as Object instead of Data.
+		private Object data;
+		
+		private DataNotFound(Object data) {
+			this.data = data;
+		}
+	}
 
-	class DataNotFound {
-	public:
-		Data data;
-	};
-
-
-public:
-	*/
-
-	/**
+	/* *
 	 * An Iterable class which can be iterated to fetch the results of a
 	 * nearest-neighbors query.
 	 * 
@@ -142,30 +112,35 @@ public:
 
 		private class ResultsIterator implements Iterator<ResultItem> {
 			
-			private class ItemWithDistances <U> {
-				/*
-				const U* item;
-				double distance;
-				double minDistance;
+			private class ItemWithDistances <U> implements Comparable<ItemWithDistances<U>> {
+				private U item;
+				private double distance;
+				private double minDistance;
 
-				ItemWithDistances(const U* item, double distance, double minDistance)
-					: item(item), distance(distance), minDistance(minDistance)
-					{ }
-
-				bool operator<(const ItemWithDistances& that) const {
-					return (this->minDistance > that.minDistance);
+				public ItemWithDistances(U item, double distance, double minDistance) {
+					this.item = item;
+					this.distance = distance;
+					this.minDistance = minDistance;
 				}
-				*/
+
+				@Override
+				public int compareTo(ItemWithDistances<U> that) {
+					if(this.minDistance < that.minDistance) {
+						return -1;
+					} else if(this.minDistance > that.minDistance) {
+						return +1;
+					} else {
+						return 0;
+					}
+				}
 			}
 			
 			
-			private ResultItem next = null;
+			private ResultItem nextResultItem = null;
 			private boolean finished = false;
-			private PriorityQueue<ItemWithDistances<Node>> pendingQueue;
-			/*
-			double nextPendingMinDistance;
-			 */
-			private PriorityQueue<ItemWithDistances<Entry>> nearestQueue;
+			private PriorityQueue<ItemWithDistances<Node>> pendingQueue = new PriorityQueue<ItemWithDistances<Node>>();
+			private double nextPendingMinDistance;
+			private PriorityQueue<ItemWithDistances<Entry>> nearestQueue = new PriorityQueue<ItemWithDistances<Entry>>();
 			private int yieldedCount;
 			
 			private ResultsIterator() {
@@ -174,15 +149,11 @@ public:
 					return;
 				}
 				
-				/*
-				double distance = _query->_mtree->distance_function(_query->data, _query->_mtree->root->data);
-				double minDistance = std::max(distance - _query->_mtree->root->radius, 0.0);
-
-				pendingQueue.push({_query->_mtree->root, distance, minDistance});
+				double distance = MTree.this.distanceFunction.calculate(Query.this.data, MTree.this.root.data);
+				double minDistance = Math.max(distance - MTree.this.root.radius, 0.0);
+				
+				pendingQueue.add(new ItemWithDistances<Node>(MTree.this.root, distance, minDistance));
 				nextPendingMinDistance = minDistance;
-
-				fetchNext();
-				*/
 			}
 			
 			
@@ -192,33 +163,27 @@ public:
 					return false;
 				}
 				
-				if(next == null) {
+				if(nextResultItem == null) {
 					fetchNext();
 				}
 				
-				throw new RuntimeException("Not implemented");
-				/*
-				if(next == null) {
+				if(nextResultItem == null) {
 					finished = true;
 					return false;
 				} else {
 					return true;
 				}
-				*/
 			}
 			
 			@Override
 			public ResultItem next() {
-				throw new RuntimeException("Not implemented");
-				/*
 				if(hasNext()) {
-					ResultItem n = next;
-					next = null;
-					return n;
+					ResultItem next = nextResultItem;
+					nextResultItem = null;
+					return next;
 				} else {
 					throw new NoSuchElementException();
 				}
-				*/
 			}
 			
 			@Override
@@ -236,53 +201,71 @@ public:
 				}
 				
 				while(!pendingQueue.isEmpty()  ||  !nearestQueue.isEmpty()) {
-					throw new RuntimeException("Not implemented");
-					/*
 					if(prepareNextNearest()) {
 						return;
 					}
-
-					assert(!pendingQueue.empty());
-
-					ItemWithDistances<Node> pending = pendingQueue.top();
-					pendingQueue.pop();
-
-					const Node* node = pending.item;
-
-					for(typename Node::ChildrenMap::const_iterator i = node->children.begin(); i != node->children.end(); ++i) {
-						IndexItem* child = i->second;
-						if(std::abs(pending.distance - child->distanceToParent) - child->radius <= _query->range) {
-							double childDistance = _query->_mtree->distance_function(_query->data, child->data);
-							double childMinDistance = std::max(childDistance - child->radius, 0.0);
-							if(childMinDistance <= _query->range) {
-								Entry* entry = dynamic_cast<Entry*>(child);
-								if(entry != NULL) {
-									nearestQueue.push({entry, childDistance, childMinDistance});
+					
+					assert !pendingQueue.isEmpty();
+					
+					ItemWithDistances<Node> pending = pendingQueue.poll();
+					Node node = pending.item;
+					
+					for(IndexItem child : node.children.values()) {
+						if(Math.abs(pending.distance - child.distanceToParent) - child.radius <= Query.this.range) {
+							double childDistance = MTree.this.distanceFunction.calculate(Query.this.data, child.data);
+							double childMinDistance = Math.max(childDistance - child.radius, 0.0);
+							if(childMinDistance <= Query.this.range) {
+								if(child instanceof MTree.Entry) {
+									@SuppressWarnings("unchecked")
+									Entry entry = (Entry)child;
+									nearestQueue.add(new ItemWithDistances<Entry>(entry, childDistance, childMinDistance));
 								} else {
+									throw new RuntimeException("Not implemented");
+									/*
 									Node* node = dynamic_cast<Node*>(child);
 									assert(node != NULL);
 									pendingQueue.push({node, childDistance, childMinDistance});
+									*/
 								}
 							}
 						}
 					}
-
-					if(pendingQueue.empty()) {
-						nextPendingMinDistance = std::numeric_limits<double>::infinity();
+					
+					if(pendingQueue.isEmpty()) {
+						nextPendingMinDistance = Double.POSITIVE_INFINITY;
 					} else {
+						throw new RuntimeException("Not implemented");
+						/*
 						nextPendingMinDistance = pendingQueue.top().minDistance;
+						*/
 					}
-					*/
 				}
 
-				throw new RuntimeException("Not implemented");
-				/*
-				isEnd = true;
-				*/
+				finished = true;
 			}
 
 			
+			private boolean prepareNextNearest() {
+				if(!nearestQueue.isEmpty()) {
+					ItemWithDistances<Entry> nextNearest = nearestQueue.peek();
+					if(nextNearest.distance <= nextPendingMinDistance) {
+						nearestQueue.poll();
+						nextResultItem = new ResultItem(nextNearest.item.data, nextNearest.distance);
+						++yieldedCount;
+						return true;
+					}
+				}
+				
+				return false;
+			}
 			
+		}
+		
+		
+		private Query(DATA data, double range, int limit) {
+			this.data = data;
+			this.range = range;
+			this.limit = limit;
 		}
 		
 		
@@ -290,110 +273,14 @@ public:
 		public ResultsIterator iterator() {
 			return new ResultsIterator();
 		}
-		/*
-	public:
-		typedef result_item value_type;
 
 
-		query() = delete;
-
-		/**
-		 * @brief Copy constructor.
-		 * /
-		query(const query&) = default;
-
-		/**
-		 * @brief Move constructor.
-		 * /
-		query(query&&) = default;
-		*/
-
-		private Query(Data data, double range, int limit) {
-			this.data = data;
-			this.range = range;
-			this.limit = limit;
-		}
-
-
-		/*
-		/** @brief Copy assignment. * /
-		query& operator=(const query&) = default;
-
-		/** @brief Move assignment. * /
-		query& operator=(query&& q) {
-			if(this != &q) {
-				this->_mtree = q._mtree;
-				this->range = q.range;
-				this->limit = q.limit;
-				this->data = std::move(q.data);
-			}
-			return *this;
-		}
-
-
-
-		/**
+		/* *
 		 * @brief The iterator for accessing the results of nearest-neighbor
 		 *        queries.
 		 * /
 		class iterator {
 		public:
-			typedef std::input_iterator_tag iterator_category;
-			typedef result_item             value_type;
-			typedef signed long int         difference_type;
-			typedef result_item*            pointer;
-			typedef result_item&            reference;
-
-
-			iterator() : isEnd(true) {}
-
-
-			explicit iterator(const query* _query)
-				: _query(_query),
-				  isEnd(false),
-				  yieldedCount(0)
-			{
-				if(_query->_mtree->root == NULL) {
-					isEnd = true;
-					return;
-				}
-
-				double distance = _query->_mtree->distance_function(_query->data, _query->_mtree->root->data);
-				double minDistance = std::max(distance - _query->_mtree->root->radius, 0.0);
-
-				pendingQueue.push({_query->_mtree->root, distance, minDistance});
-				nextPendingMinDistance = minDistance;
-
-				fetchNext();
-			}
-
-
-			/** @brief Copy constructor. * /
-			iterator(const iterator&) = default;
-
-			/** @brief Move constructor. * /
-			iterator(iterator&&) = default;
-
-			~iterator() = default;
-
-			/** @brief Copy assignment. * /
-			iterator& operator=(const iterator&) = default;
-
-			/** @brief Move assignment. * /
-			iterator& operator=(iterator&& i) {
-				if(this != &i) {
-					this->_query = i._query;
-					this->currentResultItem = std::move(i.currentResultItem);
-					this->isEnd = i.isEnd;
-					this->pendingQueue = std::move(i.pendingQueue);
-					this->nextPendingMinDistance = i.nextPendingMinDistance;
-					this->nearestQueue = std::move(i.nearestQueue);
-					this->yieldedCount = i.yieldedCount;
-				}
-				return *this;
-			}
-
-
 			bool operator==(const iterator& ri) const {
 				if(this->isEnd  &&  ri.isEnd) {
 					return true;
@@ -406,100 +293,30 @@ public:
 				return  this->_query == ri._query
 				    &&  this->yieldedCount == ri.yieldedCount;
 			}
-
-			bool operator!=(const iterator& ri) const {
-				return ! this->operator==(ri);
-			}
-
-
-			/**
-			 * @brief Advance the iterator to the next result.
-			 * /
-			//@{
-			// prefix
-			iterator& operator++() {
-				fetchNext();
-				return *this;
-			}
-
-			// postfix
-			iterator operator++(int) {
-				iterator aCopy = *this;
-				operator++();
-				return aCopy;
-			}
-			//@}
-
-
-			/**
-			 * @brief Gives access to the current query result.
-			 * @details An iterator instance always refers to the same
-			 *          result_item instance; only the fields of the result_item
-			 *          are updated when the iterator changes.
-			 * /
-			//@{
-			const result_item& operator*() const {
-				return currentResultItem;
-			}
-
-			const result_item* operator->() const {
-				return &currentResultItem;
-			}
-			//@}
-
-		private:
-			bool prepareNextNearest() {
-				if(!nearestQueue.empty()) {
-					ItemWithDistances<Entry> nextNearest = nearestQueue.top();
-					if(nextNearest.distance <= nextPendingMinDistance) {
-						nearestQueue.pop();
-						currentResultItem.data = nextNearest.item->data;
-						currentResultItem.distance = nextNearest.distance;
-						++yieldedCount;
-						return true;
-					}
-				}
-
-				return false;
-			}
 		};
-
-
-		/**
-		 * @brief Begins the execution of the query and returns an interator
-		 *        which refers to the first result.
-		 * /
-		iterator begin() const {
-			return iterator(this);
-		}
-
-
-		/**
-		 * @brief Returns an iterator which informs that there are no more
-		 *        results.
-		 * /
-		iterator end() const {
-			return {};
-		}
 		*/
 
-		private Data data;
+		private DATA data;
 		private double range;
 		private int limit;
 	}
 
 
-	/*
-	enum {
-		/**
-		 * @brief The default minimum capacity of nodes in an M-Tree, when not
-		 * specified in the constructor call.
-		 * /
-		DEFAULT_MIN_NODE_CAPACITY = 50
-	};
+	
+	/* *
+	 * @brief The default minimum capacity of nodes in an M-Tree, when not
+	 * specified in the constructor call.
+	 */
+	public static final int DEFAULT_MIN_NODE_CAPACITY = 50;
 
 
-	/**
+	protected int minNodeCapacity;
+	protected int maxNodeCapacity;
+	protected DistanceFunction<? super DATA> distanceFunction;
+	protected Node root;
+	
+	
+	/* *
 	 * @brief The main constructor of an M-Tree.
 	 *
 	 * @param min_node_capacity The minimum capacity of the nodes of an M-Tree.
@@ -510,72 +327,44 @@ public:
 	 * @param distance_function An instance of @c DistanceFunction.
 	 * @param split_function An instance of @c SplitFunction.
 	 *
-	 * /
-	explicit mtree(
-			size_t min_node_capacity = DEFAULT_MIN_NODE_CAPACITY,
-			size_t max_node_capacity = -1,
-			const DistanceFunction& distance_function = DistanceFunction(),
-			const SplitFunction& split_function = SplitFunction()
-		)
-		: minNodeCapacity(min_node_capacity),
-		  maxNodeCapacity(max_node_capacity),
-		  root(NULL),
-		  distance_function(distance_function),
-		  split_function(split_function)
-	{
-		if(max_node_capacity == size_t(-1)) {
-			this->maxNodeCapacity = 2 * min_node_capacity - 1;
+	 */
+	public MTree(DistanceFunction<? super DATA> distanceFunction) {
+		this(DEFAULT_MIN_NODE_CAPACITY, distanceFunction);
+	}
+	
+	public MTree(int minNodeCapacity, DistanceFunction<? super DATA> distanceFunction) {
+		this(minNodeCapacity, 2 * minNodeCapacity - 1, distanceFunction);
+	}
+	
+	public MTree(int minNodeCapacity, int maxNodeCapacity, DistanceFunction<? super DATA> distanceFunction) {
+		if(minNodeCapacity < 2  ||  maxNodeCapacity <= minNodeCapacity  ||  distanceFunction == null) {
+			throw new IllegalArgumentException();
 		}
+		
+		this.minNodeCapacity = minNodeCapacity;
+		this.maxNodeCapacity = maxNodeCapacity;
+		this.distanceFunction = distanceFunction;
+		this.root = null;
 	}
-
-	// Cannot copy!
-	mtree(const mtree&) = delete;
-
-	// ... but moving is ok.
-	/** @brief Move constructor. * /
-	mtree(mtree&& that)
-		: root(that.root),
-		  maxNodeCapacity(that.maxNodeCapacity),
-		  minNodeCapacity(that.minNodeCapacity),
-		  distance_function(that.distance_function),
-		  split_function(that.split_function)
-	{
-		that.root = NULL;
-	}
-
-
-	~mtree() {
-		delete root;
-	}
-
-	// Cannot copy!
-	mtree& operator=(const mtree&) = delete;
-
-	// ... but moving is ok.
-	/** @brief Move assignment. * /
-	mtree& operator=(mtree&& that) {
-		if(&that != this) {
-			std::swap(this->root, that.root);
-			this->minNodeCapacity = that.minNodeCapacity;
-			this->maxNodeCapacity = that.maxNodeCapacity;
-			this->distance_function = std::move(that.distance_function);
-			this->split_function = std::move(that.split_function);
-		}
-		return *this;
-	}
-
-
-	/**
+	
+	
+	/* *
 	 * @brief Adds and indexes a data object.
 	 * @details An object that is already indexed should not be added. There is
 	 *          no validation, and the behavior is undefined if done.
 	 * @param data The data object to index.
-	 * /
-	void add(const Data& data) {
-		if(root == NULL) {
+	 */
+	public void add(DATA data) {
+		if(root == null) {
 			root = new RootLeafNode(data);
-			root->addData(data, 0, this);
+			try {
+				root.addData(data, 0);
+			} catch (SplitNodeReplacement e) {
+				throw new RuntimeException("Should never happen!");
+			}
 		} else {
+			throw new RuntimeException("Not implemented");
+			/*
 			double distance = distance_function(data, root->data);
 			try {
 				root->addData(data, distance, this);
@@ -589,57 +378,60 @@ public:
 					root->addChild(newNode, distance, this);
 				}
 			}
+			*/
 		}
 	}
 
 
-	/**
+	/* *
 	 * @brief Removes a data object from the M-Tree.
 	 * @param data The data object to be removed.
 	 * @return @c true if and only if the object was found.
-	 * /
-	bool remove(const Data& data) {
-		if(root == NULL) {
+	 */
+	public boolean remove(DATA data) {
+		if(root == null) {
 			return false;
 		}
-
-		double distanceToRoot = distance_function(data, root->data);
+		
+		double distanceToRoot = distanceFunction.calculate(data, root.data);
 		try {
-			root->removeData(data, distanceToRoot, this);
-		} catch(RootNodeReplacement& e) {
-			delete root;
-			root = e.newRoot;
-		} catch(DataNotFound) {
+			root.removeData(data, distanceToRoot);
+		} catch(RootNodeReplacement e) {
+			@SuppressWarnings("unchecked")
+			Node newRoot = (Node) e.newRoot;
+			root = newRoot;
+		} catch(DataNotFound e) {
 			return false;
+		} catch (NodeUnderCapacity e) {
+			throw new RuntimeException("Should have never happened", e);
 		}
 		return true;
 	}
-	*/
 
-	/**
+	/* *
 	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
 	 *        distance.
 	 * @param query_data The query data object.
 	 * @param range The maximum distance from @c query_data to fetched neighbors.
 	 * @return A @c query object.
 	 */
-	public Query getNearestByRange(Data queryData, double range) {
+	public Query getNearestByRange(DATA queryData, double range) {
 		return getNearest(queryData, range, Integer.MAX_VALUE);
 	}
 	
 	
-	/**
+	/* *
 	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
 	 *        the number of neighbors.
 	 * @param query_data The query data object.
 	 * @param limit The maximum number of neighbors to fetch.
 	 * @return A @c query object.
 	 */
-	public Query getNearestByLimit(Data queryData, int limit) {
+	public Query getNearestByLimit(DATA queryData, int limit) {
 		return getNearest(queryData, Double.POSITIVE_INFINITY, limit);
 	}
 
-	/**
+	/* *
 	 * @brief Performs a nearest-neighbor query on the M-Tree, constrained by
 	 *        distance and/or the number of neighbors.
 	 * @param query_data The query data object.
@@ -647,11 +439,11 @@ public:
 	 * @param limit The maximum number of neighbors to fetch.
 	 * @return A @c query object.
 	 */
-	public Query getNearest(Data queryData, double range, int limit) {
+	public Query getNearest(DATA queryData, double range, int limit) {
 		return new Query(queryData, range, limit);
 	}
 
-	/**
+	/* *
 	 * @brief Performs a nearest-neighbor query on the M-Tree, without
 	 *        constraints.
 	 * @param query_data The query data object.
@@ -665,144 +457,114 @@ public:
 			std::numeric_limits<unsigned int>::max()
 		};
 	}
-
-protected:
-
-	void _check() const {
-#ifndef NDEBUG
-			if(root != NULL) {
-				root->_check(this);
-			}
-#endif
+	*/
+	
+	protected void _check() {
+		if(root != null) {
+			root._check();
+		}
 	}
-
+	
+	/*
 private:
 
 	typedef std::pair<Data, Data> PromotedPair;
 	typedef std::set<Data> Partition;
 
-
-	size_t minNodeCapacity;
-	size_t maxNodeCapacity;
-	*/
-	private Node root;
-
-	/*
 protected:
-	DistanceFunction distance_function;
 	SplitFunction split_function;
+	*/
 
-public:
-	class IndexItem {
-	public:
-		Data data;
-		double radius;
+	private class IndexItem {
+		DATA data;
+		protected double radius;
 		double distanceToParent;
 
-		virtual ~IndexItem() { };
+		private IndexItem(DATA data) {
+			this.data = data;
+			this.radius = 0;
+			this.distanceToParent = -1;
+		}
 
-		IndexItem() = delete;
-		IndexItem(const IndexItem&) = delete;
-		IndexItem(IndexItem&&) = delete;
-		IndexItem& operator=(const IndexItem&) = delete;
-		IndexItem& operator=(IndexItem&&) = delete;
-
-	protected:
-		IndexItem(const Data& data)
-			: data(data),
-			  radius(0),
-			  distanceToParent(-1)
-			{ }
-
-	public:
-		virtual size_t _check(const mtree* mtree) const {
+		int _check() {
 			_checkRadius();
 			_checkDistanceToParent();
 			return 1;
 		}
 
-	private:
-		void _checkRadius() const {
-			assert(radius >= 0);
+		private void _checkRadius() {
+			assert radius >= 0;
 		}
 
-	protected:
-		virtual void _checkDistanceToParent() const {
-			assert(dynamic_cast<const RootNodeTrait*>(this) == NULL);
-			assert(distanceToParent >= 0);
+		protected void _checkDistanceToParent() {
+			assert !(this instanceof MTree.RootLeafNode);
+			// assert !(this instanceof MTree.RootNode);	// TODO: pending
+			assert distanceToParent >= 0;
 		}
-	};
+	}
 
-
-	*/
 	
-	private class Node /*extends IndexItem*/ {
-		/*
-	public:
-		virtual ~Node() {
-			for(typename ChildrenMap::iterator i = children.begin(); i != children.end(); ++i) {
-				IndexItem* child = i->second;
-				delete child;
-			}
+	
+	private abstract class Node extends IndexItem {
+
+		protected Map<DATA, IndexItem> children = new HashMap<DATA, IndexItem>();
+		protected Rootness rootness;
+		protected Leafness<DATA> leafness;
+
+		private
+		<R extends NodeTrait & Rootness, L extends NodeTrait & Leafness<DATA>>
+		Node(DATA data, R rootness, L leafness) {
+			super(data);
+
+			rootness.thisNode = this;
+			this.rootness = rootness;
+
+			leafness.thisNode = this;
+			this.leafness = leafness;
 		}
 
-		void addData(const Data& data, double distance, const mtree* mtree) throw(SplitNodeReplacement) {
-			doAddData(data, distance, mtree);
-			checkMaxCapacity(mtree);
+		private final void addData(DATA data, double distance) throws SplitNodeReplacement {
+			doAddData(data, distance);
+			checkMaxCapacity();
 		}
 
-#ifndef NDEBUG
-		size_t _check(const mtree* mtree) const {
-			IndexItem::_check(mtree);
-			_checkMinCapacity(mtree);
-			_checkMaxCapacity(mtree);
+		int _check() {
+			super._check();
+			_checkMinCapacity();
+			_checkMaxCapacity();
 
-			bool   childHeightKnown = false;
-			size_t childHeight;
-			for(typename ChildrenMap::const_iterator i = children.begin(); i != children.end(); ++i) {
-#ifndef NDEBUG
-				const Data& data = i->first;
-#endif
-				IndexItem* child = i->second;
+			int childHeight = -1;
+			for(Map.Entry<DATA, IndexItem> e : children.entrySet()) {
+				DATA data = e.getKey();
+				IndexItem child = e.getValue();
+				assert child.data.equals(data);
 
-				assert(child->data == data);
 				_checkChildClass(child);
-				_checkChildMetrics(child, mtree);
+				_checkChildMetrics(child);
 
-				size_t height = child->_check(mtree);
-				if(childHeightKnown) {
-					assert(childHeight == height);
-				} else {
+				int height = child._check();
+				if(childHeight < 0) {
 					childHeight = height;
-					childHeightKnown = true;
+				} else {
+					assert childHeight == height;
 				}
 			}
 
 			return childHeight + 1;
 		}
-#endif
 
-		typedef std::map<Data, IndexItem*> ChildrenMap;
+		protected void doAddData(DATA data, double distance) {
+			leafness.doAddData(data, distance);
+		}
 
-		ChildrenMap children;
+		protected void doRemoveData(DATA data, double distance) throws DataNotFound {
+			leafness.doRemoveData(data, distance);
+		}
 
-	protected:
-		Node(const Data& data) : IndexItem(data) { }
-
-		Node() : IndexItem(*((Data*)(0))) { assert(!"THIS SHOULD NEVER BE CALLED"); };
-
-		Node(const Node&) = delete;
-		Node(Node&&) = delete;
-		Node& operator=(const Node&) = delete;
-		Node& operator=(Node&&) = delete;
-
-		virtual void doAddData(const Data& data, double distance, const mtree* mtree) = 0;
-
-		virtual void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (DataNotFound) = 0;
-
-	public:
-		void checkMaxCapacity(const mtree* mtree) throw (SplitNodeReplacement) {
-			if(children.size() > mtree->maxNodeCapacity) {
+		private final void checkMaxCapacity() throws SplitNodeReplacement {
+			if(children.size() > MTree.this.maxNodeCapacity) {
+				throw new RuntimeException("Not implemented");
+				/*
 				Partition firstPartition;
 				for(typename ChildrenMap::iterator i = children.begin(); i != children.end(); ++i) {
 					firstPartition.insert(i->first);
@@ -832,93 +594,107 @@ public:
 				assert(children.empty());
 
 				throw SplitNodeReplacement(newNodes);
+				 */
 			}
 
 		}
 
+		/*
 	protected:
 		virtual Node* newSplitNodeReplacement(const Data&) const = 0;
 
 	public:
 		virtual void addChild(IndexItem* child, double distance, const mtree* mtree) = 0;
+		*/
 
-		virtual void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, DataNotFound) {
-			doRemoveData(data, distance, mtree);
-			if(children.size() < getMinCapacity(mtree)) {
-				throw NodeUnderCapacity();
+		void removeData(DATA data, double distance) throws RootNodeReplacement, NodeUnderCapacity, DataNotFound {
+			doRemoveData(data, distance);
+			if(children.size() < getMinCapacity()) {
+				throw new NodeUnderCapacity();
 			}
 		}
 
-		virtual size_t getMinCapacity(const mtree* mtree) const = 0;
+		abstract int getMinCapacity();
 
-	protected:
-		void updateMetrics(IndexItem* child, double distance) {
-			child->distanceToParent = distance;
+		private void updateMetrics(IndexItem child, double distance) {
+			child.distanceToParent = distance;
 			updateRadius(child);
 		}
 
-		void updateRadius(IndexItem* child) {
-			this->radius = std::max(this->radius, child->distanceToParent + child->radius);
+		private void updateRadius(IndexItem child) {
+			this.radius = Math.max(this.radius, child.distanceToParent + child.radius);
 		}
 
-
-		virtual void _checkMinCapacity(const mtree* mtree) const = 0;
-
-	private:
-		void _checkMaxCapacity(const mtree* mtree) const {
-			assert(children.size() <= mtree->maxNodeCapacity);
+		void _checkMinCapacity() {
+			rootness._checkMinCapacity();
 		}
 
-	protected:
-		virtual void _checkChildClass(IndexItem* child) const = 0;
-
-	private:
-#ifndef NDEBUG
-		void _checkChildMetrics(IndexItem* child, const mtree* mtree) const {
-			double dist = mtree->distance_function(child->data, this->data);
-			assert(child->distanceToParent == dist);
-
-			/* TODO: investigate why the following line
-			 * 		assert(child->distanceToParent + child->radius <= this->radius);
-			 * is not the same as the code below:
-			 * /
-			double sum = child->distanceToParent + child->radius;
-			assert(sum <= this->radius);
+		private void _checkMaxCapacity() {
+			assert children.size() <= MTree.this.maxNodeCapacity;
 		}
-#endif
-		*/
+
+		private void _checkChildClass(IndexItem child) {
+			leafness._checkChildClass(child);
+		}
+
+		private void _checkChildMetrics(IndexItem child) {
+			double dist = MTree.this.distanceFunction.calculate(child.data, this.data);
+			assert child.distanceToParent == dist;
+
+			double sum = child.distanceToParent + child.radius;
+			assert sum <= this.radius;
+		}
+
+		private MTree<DATA> mtree() {
+			return MTree.this;
+		}
 	}
 	
+	
+	
+	
+	private abstract class NodeTrait {
+		protected Node thisNode;
+	}
+	
+	private interface Leafness<DATA> {
+		void doAddData(DATA data, double distance);
+		void doRemoveData(DATA data, double distance) throws DataNotFound;
+		void _checkChildClass(MTree<DATA>.IndexItem child);
+	}
+	
+	private interface Rootness {
+		void _checkDistanceToParent();
+		void _checkMinCapacity();
+	}
+	
+	
+	
+	private class RootNodeTrait extends NodeTrait implements Rootness {
+		
+		@Override
+		public void _checkDistanceToParent() {
+			assert thisNode.distanceToParent == -1;
+		}
 
-	/*
-private:
-	class RootNodeTrait : public virtual Node {
-		void _checkDistanceToParent() const {
-			assert(this->distanceToParent == -1);
+		@Override
+		public void _checkMinCapacity() {
+			thisNode._checkMinCapacity();
 		}
 	};
-
-
-	class NonRootNodeTrait : public virtual Node {
-		size_t getMinCapacity(const mtree* mtree) const {
-			return mtree->minNodeCapacity;
+	
+	
+	private class LeafNodeTrait extends NodeTrait implements Leafness<DATA> {
+		
+		public void doAddData(DATA data, double distance) {
+			Entry entry = thisNode.mtree().new Entry(data);
+			assert !thisNode.children.containsKey(data);
+			thisNode.children.put(data, entry);
+			assert thisNode.children.containsKey(data);
+			thisNode.updateMetrics(entry, distance);
 		}
 
-		void _checkMinCapacity(const mtree* mtree) const {
-			assert(this->children.size() >= mtree->minNodeCapacity);
-		}
-	};
-
-
-	class LeafNodeTrait : public virtual Node {
-		void doAddData(const Data& data, double distance, const mtree* mtree) {
-			Entry* entry = new Entry(data);
-			assert(this->children.find(data) == this->children.end());
-			this->children[data] = entry;
-			assert(this->children.find(data) != this->children.end());
-			updateMetrics(entry, distance);
-		}
-
+		/*
 		void addChild(IndexItem* child, double distance, const mtree* mtree) {
 			assert(this->children.find(child->data) == this->children.end());
 			this->children[child->data] = child;
@@ -929,18 +705,20 @@ private:
 		Node* newSplitNodeReplacement(const Data& data) const {
 			return new LeafNode(data);
 		}
+		*/
 
-		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (DataNotFound) {
-			if(this->children.erase(data) == 0) {
-				throw DataNotFound{data};
+		@Override
+		public void doRemoveData(DATA data, double distance) throws DataNotFound {
+			if(thisNode.children.remove(data) == null) {
+				throw new DataNotFound(data);
 			}
 		}
 
-
-		void _checkChildClass(IndexItem* child) const {
-			assert(dynamic_cast<Entry*>(child) != NULL);
+		public void _checkChildClass(IndexItem child) {
+			assert child instanceof MTree.Entry;
 		}
-	};
+	}
+	/*
 
 
 	class NonLeafNodeTrait : public virtual Node {
@@ -1153,29 +931,37 @@ private:
 			   ||  dynamic_cast<LeafNode*>(child)     != NULL);
 		}
 	};
+	*/
 
 
-	class RootLeafNode : public RootNodeTrait, public LeafNodeTrait {
-	public:
-		RootLeafNode(const Data& data) : Node(data) { }
-
-		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, DataNotFound) {
+	private class RootLeafNode extends Node {
+		
+		private RootLeafNode(DATA data) {
+			super(data, new RootNodeTrait(), new LeafNodeTrait());
+		}
+		
+		void removeData(DATA data, double distance) throws RootNodeReplacement, DataNotFound {
 			try {
-				Node::removeData(data, distance, mtree);
-			} catch (NodeUnderCapacity&) {
-				assert(this->children.empty());
-				throw RootNodeReplacement{NULL};
+				super.removeData(data, distance);
+			} catch (NodeUnderCapacity e) {
+				assert children.isEmpty();
+				throw new RootNodeReplacement(null);
 			}
 		}
+		
+		protected void _checkDistanceToParent() {
+			rootness._checkDistanceToParent();
+		}
 
-		size_t getMinCapacity(const mtree* mtree) const {
+		int getMinCapacity() {
 			return 1;
 		}
 
-		void _checkMinCapacity(const mtree* mtree) const {
-			assert(this->children.size() >= 1);
+		void _checkMinCapacity() {
+			assert children.size() >= 1;
 		}
-	};
+	}
+	/*
 
 	class RootNode : public RootNodeTrait, public NonLeafNodeTrait {
 	public:
@@ -1231,10 +1017,9 @@ private:
 
 	 */
 
-	private class Entry /*extends IndexItem*/ {
-		/*
-	public:
-		Entry(const Data& data) : IndexItem(data) { }
-		*/
+	private class Entry extends IndexItem {
+		private Entry(DATA data) {
+			super(data);
+		}
 	}
 }
