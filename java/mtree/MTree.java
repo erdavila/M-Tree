@@ -772,6 +772,7 @@ protected:
 			CandidateChild nearestDistance         = new CandidateChild(null, -1.0, Double.POSITIVE_INFINITY);
 			
 			for(IndexItem item : thisNode.children.values()) {
+				@SuppressWarnings("unchecked")
 				Node child = (Node)item;
 				double childDistance = thisNode.mtree().distanceFunction.calculate(child.data, data);
 				if(childDistance > child.radius) {
@@ -780,12 +781,9 @@ protected:
 						minRadiusIncreaseNeeded = new CandidateChild(child, childDistance, radiusIncrease);
 					}
 				} else {
-					throw new RuntimeException("Not implemented");
-					/*
 					if(childDistance < nearestDistance.metric) {
-						nearestDistance = { child, childDistance, childDistance };
+						nearestDistance = new CandidateChild(child, childDistance, childDistance);
 					}
-					 */
 				}
 			}
 			
@@ -798,22 +796,16 @@ protected:
 				child.addData(data, chosen.distance);
 				thisNode.updateRadius(child);
 			} catch(SplitNodeReplacement e) {
-				throw new RuntimeException("Not implemented");
-				/*
 				// Replace current child with new nodes
-				#ifndef NDEBUG
-				size_t _ =
-				#endif
-				this->children.erase(child->data);
-				assert(_ == 1);
-				delete child;
+				IndexItem _ = thisNode.children.remove(child.data);
+				assert _ != null;
 				
-				for(int i = 0; i < e.NUM_NODES; ++i) {
-					Node* newChild = e.newNodes[i];
-					double distance = mtree->distance_function(this->data, newChild->data);
-					addChild(newChild, distance, mtree);
+				for(int i = 0; i < e.newNodes.length; ++i) {
+					@SuppressWarnings("unchecked")
+					Node newChild = (Node) e.newNodes[i];
+					distance = thisNode.mtree().distanceFunction.calculate(thisNode.data, newChild.data);
+					thisNode.addChild(newChild, distance);
 				}
-				 */
 			}
 		}
 		

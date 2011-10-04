@@ -127,12 +127,12 @@ public class MTreeTest {
 	@Test public void test03() { _test("f03"); }
 	@Test public void test04() { _test("f04"); }
 	@Test public void test05() { _test("f05"); }
+	@Test public void test06() { _test("f06"); }
+	@Test public void test07() { _test("f07"); }
 
 /*
 
 public:
-	void test06() { _test("f06"); }
-	void test07() { _test("f07"); }
 	void test08() { _test("f08"); }
 	void test09() { _test("f09"); }
 	void test10() { _test("f10"); }
