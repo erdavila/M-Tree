@@ -757,42 +757,49 @@ protected:
 	class NonLeafNodeTrait extends NodeTrait implements Leafness<DATA> {
 		
 		public void doAddData(DATA data, double distance) {
-			throw new RuntimeException("Not implemented");
-			/*
-			struct CandidateChild {
-				Node* node;
+			class CandidateChild {
+				Node node;
 				double distance;
 				double metric;
-			};
-			
-			CandidateChild minRadiusIncreaseNeeded = { NULL, -1.0, std::numeric_limits<double>::infinity() };
-			CandidateChild nearestDistance         = { NULL, -1.0, std::numeric_limits<double>::infinity() };
-			
-			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
-				Node* child = dynamic_cast<Node*>(i->second);
-				assert(child != NULL);
-				double distance = mtree->distance_function(child->data, data);
-				if(distance > child->radius) {
-					double radiusIncrease = distance - child->radius;
-					if(radiusIncrease < minRadiusIncreaseNeeded.metric) {
-						minRadiusIncreaseNeeded = { child, distance, radiusIncrease };
-					}
-				} else {
-					if(distance < nearestDistance.metric) {
-						nearestDistance = { child, distance, distance };
-					}
+				private CandidateChild(Node node, double distance, double metric) {
+					this.node = node;
+					this.distance = distance;
+					this.metric = metric;
 				}
 			}
 			
-			CandidateChild chosen = (nearestDistance.node != NULL)
-					? nearestDistance
-							: minRadiusIncreaseNeeded;
+			CandidateChild minRadiusIncreaseNeeded = new CandidateChild(null, -1.0, Double.POSITIVE_INFINITY);
+			CandidateChild nearestDistance         = new CandidateChild(null, -1.0, Double.POSITIVE_INFINITY);
 			
-			Node* child = chosen.node;
+			for(IndexItem item : thisNode.children.values()) {
+				Node child = (Node)item;
+				double childDistance = thisNode.mtree().distanceFunction.calculate(child.data, data);
+				if(childDistance > child.radius) {
+					double radiusIncrease = childDistance - child.radius;
+					if(radiusIncrease < minRadiusIncreaseNeeded.metric) {
+						minRadiusIncreaseNeeded = new CandidateChild(child, childDistance, radiusIncrease);
+					}
+				} else {
+					throw new RuntimeException("Not implemented");
+					/*
+					if(childDistance < nearestDistance.metric) {
+						nearestDistance = { child, childDistance, childDistance };
+					}
+					 */
+				}
+			}
+			
+			CandidateChild chosen = (nearestDistance.node != null)
+			                      ? nearestDistance
+			                      : minRadiusIncreaseNeeded;
+			
+			Node child = chosen.node;
 			try {
-				child->addData(data, chosen.distance, mtree);
-				updateRadius(child);
-			} catch(SplitNodeReplacement& e) {
+				child.addData(data, chosen.distance);
+				thisNode.updateRadius(child);
+			} catch(SplitNodeReplacement e) {
+				throw new RuntimeException("Not implemented");
+				/*
 				// Replace current child with new nodes
 				#ifndef NDEBUG
 				size_t _ =
@@ -806,8 +813,8 @@ protected:
 					double distance = mtree->distance_function(this->data, newChild->data);
 					addChild(newChild, distance, mtree);
 				}
+				 */
 			}
-			*/
 		}
 		
 
@@ -889,11 +896,8 @@ protected:
 					if(distanceToChild <= child.radius) {
 						try {
 							child.removeData(data, distanceToChild);
-							throw new RuntimeException("Not implemented");
-							/*
-							updateRadius(child);
+							thisNode.updateRadius(child);
 							return;
-							*/
 						} catch(DataNotFound e) {
 							// If DataNotFound was thrown, then the data was not found in the child
 						} catch(NodeUnderCapacity e) {
@@ -930,13 +934,10 @@ protected:
 
 				double distance = thisNode.mtree().distanceFunction.calculate(theChild.data, anotherChild.data);
 				if(anotherChild.children.size() > anotherChild.getMinCapacity()) {
-					throw new RuntimeException("Not implemented");
-					/*
 					if(distance < distanceNearestDonor) {
 						distanceNearestDonor = distance;
 						nearestDonor = anotherChild;
 					}
-					*/
 				} else {
 					if(distance < distanceNearestMergeCandidate) {
 						distanceNearestMergeCandidate = distance;
@@ -956,29 +957,22 @@ protected:
 				assert removed != null;
 				return nearestMergeCandidate;
 			} else {
-				throw new RuntimeException("Not implemented");
-				/*
 				// Donate
 				// Look for the nearest grandchild
-				IndexItem* nearestGrandchild;
-				double nearestGrandchildDistance = std::numeric_limits<double>::infinity();
-				for(typename Node::ChildrenMap::iterator i = nearestDonor->children.begin(); i != nearestDonor->children.end(); ++i) {
-					IndexItem* grandchild = i->second;
-					double distance = mtree->distance_function(grandchild->data, theChild->data);
+				IndexItem nearestGrandchild = null;
+				double nearestGrandchildDistance = Double.POSITIVE_INFINITY;
+				for(IndexItem grandchild : nearestDonor.children.values()) {
+					double distance = thisNode.mtree().distanceFunction.calculate(grandchild.data, theChild.data);
 					if(distance < nearestGrandchildDistance) {
 						nearestGrandchildDistance = distance;
 						nearestGrandchild = grandchild;
 					}
 				}
 
-#ifndef NDEBUG
-				size_t _ =
-#endif
-					nearestDonor->children.erase(nearestGrandchild->data);
-				assert(_ == 1);
-				theChild->addChild(nearestGrandchild, nearestGrandchildDistance, mtree);
+				IndexItem _ = nearestDonor.children.remove(nearestGrandchild.data);
+				assert _ != null;
+				theChild.addChild(nearestGrandchild, nearestGrandchildDistance);
 				return theChild;
-				 */
 			}
 		}
 
