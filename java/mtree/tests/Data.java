@@ -1,8 +1,8 @@
 package mtree.tests;
 
-import mtree.DistanceFunctions.NumberSequence;
+import mtree.DistanceFunctions.EuclideanCoordinate;
 
-class Data implements NumberSequence, Comparable<Data> {
+class Data implements EuclideanCoordinate, Comparable<Data> {
 	
 	private final int[] values;
 	private final int hashCode;
@@ -18,7 +18,7 @@ class Data implements NumberSequence, Comparable<Data> {
 	}
 	
 	@Override
-	public int size() {
+	public int dimensions() {
 		return values.length;
 	}
 
@@ -36,10 +36,10 @@ class Data implements NumberSequence, Comparable<Data> {
 	public boolean equals(Object obj) {
 		if(obj instanceof Data) {
 			Data that = (Data) obj;
-			if(this.size() != that.size()) {
+			if(this.dimensions() != that.dimensions()) {
 				return false;
 			}
-			for(int i = 0; i < this.size(); i++) {
+			for(int i = 0; i < this.dimensions(); i++) {
 				if(this.values[i] != that.values[i]) {
 					return false;
 				}
@@ -52,8 +52,8 @@ class Data implements NumberSequence, Comparable<Data> {
 	
 	@Override
 	public int compareTo(Data that) {
-		int size = Math.min(this.size(), that.size());
-		for(int i = 0; i < size; i++) {
+		int dimensions = Math.min(this.dimensions(), that.dimensions());
+		for(int i = 0; i < dimensions; i++) {
 			int v1 = this.values[i];
 			int v2 = that.values[i];
 			if(v1 > v2) {
@@ -64,11 +64,11 @@ class Data implements NumberSequence, Comparable<Data> {
 			}
 		}
 		
-		if(this.size() > size) {
+		if(this.dimensions() > dimensions) {
 			return +1;
 		}
 		
-		if(that.size() > size) {
+		if(that.dimensions() > dimensions) {
 			return -1;
 		}
 		

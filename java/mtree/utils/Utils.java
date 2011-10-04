@@ -6,11 +6,24 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Some utilities.
+ */
 public final class Utils {
 
+    /**
+     * Don't let anyone instantiate this class.
+     */
 	private Utils() {}
 
 	
+	/**
+	 * Identifies the minimum and maximum elements from an iterable, according
+	 * to the natural ordering of the elements.
+	 * @param items An {@link Iterable} object with the elements
+	 * @param <T> The type of the elements.
+	 * @return A pair with the minimum and maximum elements.
+	 */
 	public static <T extends Comparable<T>> Pair<T> minMax(Iterable<T> items) {
 		Iterator<T> iterator = items.iterator();
 		if(!iterator.hasNext()) {
@@ -34,6 +47,13 @@ public final class Utils {
 	}
 	
 	
+	/**
+	 * Randomly chooses elements from the collection.
+	 * @param collection The collection.
+	 * @param n The number of elements to choose.
+	 * @param <T> The type of the elements.
+	 * @return A list with the chosen elements.
+	 */
 	public static <T> List<T> randomSample(Collection<T> collection, int n) {
 		List<T> list = new ArrayList<T>(collection);
 		List<T> sample = new ArrayList<T>(n);

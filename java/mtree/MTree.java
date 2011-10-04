@@ -10,48 +10,34 @@ import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.Set;
 
+import mtree.SplitFunction.SplitResult;
 import mtree.utils.Pair;
 
 
-/* *
- * @brief The main class that implements the M-Tree.
+/**
+ * The main class that implements the M-Tree.
  *
- * @tparam Data The type of data that will be indexed by the M-Tree. This type
- *         must be an assignable type and a strict weak ordering must be defined
- *         by @c std::less<Data>.
- * @tparam DistanceFunction The type of the function that will be used to
- *         calculate the distance between two @c Data objects. By default, it is
- *         ::mt::functions::euclidean_distance.
- * @tparam SplitFunction The type of the function that will be used to split a
- *         node when it is at its maximum capacity and a new child must be
- *         added. By default, it is a composition of
- *         ::mt::functions::random_promotion and
- *         ::mt::functions::balanced_partition.
- *
- *
- * @todo Include a @c Compare template and constructor parameters instead of
- *       implicitly using @c std::less<Data> on @c stc::set and @c std::map.
- *
- * @todo Implement an @c unordered_mtree class which uses @c std::unordered_set
- *      and @c std::unordered_map instead of @c std::set and @c std::map
- *      respectively.
+ * @param <DATA> The type of data that will be indexed by the M-Tree. Objects of
+ *        this type are stored in HashMaps and HashSets, so their
+ *        {@code hashCode()} and {@code equals()} methods must be consistent.
  */
 public class MTree<DATA> {
 
-	/* *
+	/**
 	 * The type of the results for nearest-neighbor queries.
 	 */
 	public class ResultItem {
-		public ResultItem(DATA data, double distance) {
+		private ResultItem(DATA data, double distance) {
 			this.data = data;
 			this.distance = distance;
 		}
 
-		/* * A nearest-neighbor. */
+		/** A nearest-neighbor. */
 		public DATA data;
 
-		/* * @brief The distance from the nearest-neighbor to the query data
-		 *         object parameter.
+		/** 
+		 * The distance from the nearest-neighbor to the query data object
+		 * parameter.
 		 */
 		public double distance;
 	}
@@ -84,23 +70,20 @@ public class MTree<DATA> {
 
 	private static class DataNotFound extends Exception { }
 
-	/* *
-	 * An Iterable class which can be iterated to fetch the results of a
+	/**
+	 * An {@link Iterable} class which can be iterated to fetch the results of a
 	 * nearest-neighbors query.
 	 * 
-	 * The neighbors are presented in non-decreasing order from the @c queryData
-	 * argument to the mtree::get_nearest() call.
-	 *
-	 *          The query on the M-Tree is executed during the iteration, as the
-	 *          results are fetched. It means that, by the time when the @a n-th
-	 *          result is fetched, the next result may still not be known, and
-	 *          the resources allocated were only the necessary to identify the
-	 *          @a n first results.
-	 *
-	 *          The objects in the container are mtree::query_result instances,
-	 *          which contain a data object and the distance from the query
-	 *          data object.
-	 * @see mtree::get_nearest()
+	 * <p>The neighbors are presented in non-decreasing order from the {@code
+	 * queryData} argument to the {@link MTree#getNearest(Object, double, int)
+	 * getNearest*()}
+	 * call.
+	 * 
+	 * <p>The query on the M-Tree is executed during the iteration, as the
+	 * results are fetched. It means that, by the time when the <i>n</i>-th
+	 * result is fetched, the next result may still not be known, and the
+	 * resources allocated were only the necessary to identify the <i>n</i>
+	 * first results.
 	 */
 	public class Query implements Iterable<ResultItem> {
 
@@ -258,7 +241,7 @@ public class MTree<DATA> {
 		
 		
 		@Override
-		public ResultsIterator iterator() {
+		public Iterator<ResultItem> iterator() {
 			return new ResultsIterator();
 		}
 
@@ -270,9 +253,9 @@ public class MTree<DATA> {
 
 
 	
-	/* *
-	 * @brief The default minimum capacity of nodes in an M-Tree, when not
-	 * specified in the constructor call.
+	/**
+	 * The default minimum capacity of nodes in an M-Tree, when not specified in
+	 * the constructor call.
 	 */
 	public static final int DEFAULT_MIN_NODE_CAPACITY = 50;
 
@@ -284,29 +267,41 @@ public class MTree<DATA> {
 	protected Node root;
 	
 	
-	/* *
-	 * @brief The main constructor of an M-Tree.
-	 *
-	 * @param min_node_capacity The minimum capacity of the nodes of an M-Tree.
-	 *        Should be at least 2.
-	 * @param max_node_capacity The maximum capacity of the nodes of an M-Tree.
-	 *        Should be greater than @c min_node_capacity. If -1 is passed, then
-	 *        the value <code>2*min_node_capacity - 1</code> is used.
-	 * @param distance_function An instance of @c DistanceFunction.
-	 * @param split_function An instance of @c SplitFunction.
-	 *
+	/**
+	 * Constructs an M-Tree with the specified distance function.
+	 * @param distanceFunction The object used to calculate the distance between
+	 *        two data objects.
 	 */
 	public MTree(DistanceFunction<? super DATA> distanceFunction,
 			SplitFunction<DATA> splitFunction) {
 		this(DEFAULT_MIN_NODE_CAPACITY, distanceFunction, splitFunction);
 	}
 	
+	/**
+	 * Constructs an M-Tree with the specified minimum node capacity and
+	 * distance function.
+	 * @param minNodeCapacity The minimum capacity for the nodes of the tree.
+	 * @param distanceFunction The object used to calculate the distance between
+	 *        two data objects.
+	 * @param splitFunction The object used to process the split of nodes if
+	 *        they are full when a new child must be added.
+	 */
 	public MTree(int minNodeCapacity,
 			DistanceFunction<? super DATA> distanceFunction,
 			SplitFunction<DATA> splitFunction) {
 		this(minNodeCapacity, 2 * minNodeCapacity - 1, distanceFunction, splitFunction);
 	}
 	
+	/**
+	 * Constructs an M-Tree with the specified minimum and maximum node
+	 * capacities and distance function.
+	 * @param minNodeCapacity The minimum capacity for the nodes of the tree.
+	 * @param maxNodeCapacity The maximum capacity for the nodes of the tree.
+	 * @param distanceFunction The object used to calculate the distance between
+	 *        two data objects.
+	 * @param splitFunction The object used to process the split of nodes if
+	 *        they are full when a new child must be added.
+	 */
 	public MTree(int minNodeCapacity, int maxNodeCapacity,
 			DistanceFunction<? super DATA> distanceFunction,
 			SplitFunction<DATA> splitFunction)
@@ -331,10 +326,12 @@ public class MTree<DATA> {
 	}
 	
 	
-	/* *
-	 * @brief Adds and indexes a data object.
-	 * @details An object that is already indexed should not be added. There is
-	 *          no validation, and the behavior is undefined if done.
+	/**
+	 * Adds and indexes a data object.
+	 * 
+	 * <p>An object that is already indexed should not be added. There is no
+	 * validation regarding this, and the behavior is undefined if done.
+	 * 
 	 * @param data The data object to index.
 	 */
 	public void add(DATA data) {
@@ -363,10 +360,10 @@ public class MTree<DATA> {
 	}
 
 
-	/* *
-	 * @brief Removes a data object from the M-Tree.
+	/**
+	 * Removes a data object from the M-Tree.
 	 * @param data The data object to be removed.
-	 * @return @c true if and only if the object was found.
+	 * @return {@code true} if and only if the object was found.
 	 */
 	public boolean remove(DATA data) {
 		if(root == null) {
@@ -388,50 +385,51 @@ public class MTree<DATA> {
 		return true;
 	}
 
-	/* *
-	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
-	 *        distance.
-	 * @param query_data The query data object.
-	 * @param range The maximum distance from @c query_data to fetched neighbors.
-	 * @return A @c query object.
+	/**
+	 * Performs a nearest-neighbors query on the M-Tree, constrained by distance.
+	 * @param queryData The query data object.
+	 * @param range     The maximum distance from {@code queryData} to fetched
+	 *                  neighbors.
+	 * @return A {@link Query} object used to iterate on the results.
 	 */
 	public Query getNearestByRange(DATA queryData, double range) {
 		return getNearest(queryData, range, Integer.MAX_VALUE);
 	}
 	
 	
-	/* *
-	 * @brief Performs a nearest-neighbors query on the M-Tree, constrained by
-	 *        the number of neighbors.
-	 * @param query_data The query data object.
-	 * @param limit The maximum number of neighbors to fetch.
-	 * @return A @c query object.
+	/**
+	 * Performs a nearest-neighbors query on the M-Tree, constrained by the
+	 * number of neighbors.
+	 * @param queryData The query data object.
+	 * @param limit     The maximum number of neighbors to fetch.
+	 * @return A {@link Query} object used to iterate on the results.
 	 */
 	public Query getNearestByLimit(DATA queryData, int limit) {
 		return getNearest(queryData, Double.POSITIVE_INFINITY, limit);
 	}
 
-	/* *
-	 * @brief Performs a nearest-neighbor query on the M-Tree, constrained by
-	 *        distance and/or the number of neighbors.
-	 * @param query_data The query data object.
-	 * @param range The maximum distance from @c query_data to fetched neighbors.
-	 * @param limit The maximum number of neighbors to fetch.
-	 * @return A @c query object.
+	/**
+	 * Performs a nearest-neighbor query on the M-Tree, constrained by distance
+	 * and/or the number of neighbors.
+	 * @param queryData The query data object.
+	 * @param range     The maximum distance from {@code queryData} to fetched
+	 *                  neighbors.
+	 * @param limit     The maximum number of neighbors to fetch.
+	 * @return A {@link Query} object used to iterate on the results.
 	 */
 	public Query getNearest(DATA queryData, double range, int limit) {
 		return new Query(queryData, range, limit);
 	}
 
-	/* *
-	 * @brief Performs a nearest-neighbor query on the M-Tree, without
-	 *        constraints.
-	 * @param query_data The query data object.
-	 * @return A @c query object.
+	/**
+	 * Performs a nearest-neighbor query on the M-Tree, without constraints.
+	 * @param queryData The query data object.
+	 * @return A {@link Query} object used to iterate on the results.
 	 */
 	public Query getNearest(DATA queryData) {
 		return new Query(queryData, Double.POSITIVE_INFINITY, Integer.MAX_VALUE);
 	}
+	
 	
 	protected void _check() {
 		if(root != null) {
@@ -528,21 +526,14 @@ public class MTree<DATA> {
 
 		private final void checkMaxCapacity() throws SplitNodeReplacement {
 			if(children.size() > MTree.this.maxNodeCapacity) {
-				Set<DATA> firstPartition = new HashSet<DATA>();
-				for(DATA data : children.keySet()) {
-					firstPartition.add(data);
-				}
-				
 				DistanceFunction<? super DATA> cachedDistanceFunction = DistanceFunctions.cached(MTree.this.distanceFunction);
-				
-				Set<DATA> secondPartition = new HashSet<DATA>();
-				Pair<DATA> promoted = MTree.this.splitFunction.process(firstPartition, secondPartition, cachedDistanceFunction);
+				SplitResult<DATA> splitResult = MTree.this.splitFunction.process(children.keySet(), cachedDistanceFunction);
 				
 				Node newNode0 = null;
 				Node newNode1 = null;
 				for(int i = 0; i < 2; ++i) {
-					DATA promotedData   = promoted.get(i);
-					Set<DATA> partition = (i == 0) ? firstPartition : secondPartition;
+					DATA promotedData   = splitResult.promoted.get(i);
+					Set<DATA> partition = splitResult.partitions.get(i);
 					
 					Node newNode = newSplitNodeReplacement(promotedData);
 					for(DATA data : partition) {
