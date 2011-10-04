@@ -4,17 +4,22 @@ import static org.junit.Assert.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import mtree.ComposedSplitFunction;
 import mtree.DistanceFunction;
 import mtree.DistanceFunctions;
 import mtree.MTree;
+import mtree.PartitionFunctions;
+import mtree.PromotionFunction;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
 
 
 
@@ -30,6 +35,9 @@ PromotionFunction nonRandomPromotion =
 		sort(dataObjects.begin(), dataObjects.end());
 		return {dataObjects.front(), dataObjects.back()};
 	};
+*/
+
+/*
 
 
 typedef mt::mtree<
@@ -45,31 +53,50 @@ typedef mt::mtree<
 */
 
 class MTreeClass extends MTree<Data> {
-
-	/*
-public:
-	// Turning the member public
-	using MTree::distance_function;
-	 */
-
+	
+	private static final PromotionFunction<Data> nonRandomPromotion = new PromotionFunction<Data>() {
+	
+		@Override
+		public Data[] process(Set<Data> dataSet, DistanceFunction<? super Data> distanceFunction) {
+			List<Data> dataObjects = new ArrayList<Data>(dataSet);
+			Collections.sort(dataObjects, new Comparator<Data>() {
+				@Override
+				public int compare(Data data1, Data data2) {
+					for(int i = 0; i < data1.size()  &&  i < data2.size(); i++) {
+						if(data1.get(i) < data2.get(i)) {
+							return -1;
+						} else if(data1.get(i) > data2.get(i)) {
+							return +1;
+						}
+					}
+					
+					if(data1.size() < data2.size()) {
+						return -1;
+					} else if(data1.size() > data2.size()) {
+						return +1;
+					}
+					
+					return 0;
+				}
+			});
+			return new Data[]{ dataObjects.get(0), dataObjects.get(dataObjects.size()-1) };
+		}
+	};
+	
+	
 	MTreeClass() {
-		super(2, DistanceFunctions.EUCLIDEAN);
+		super(2, DistanceFunctions.EUCLIDEAN, new ComposedSplitFunction<Data>(nonRandomPromotion, PartitionFunctions.getBalancedPartition(Data.class)));
 	}
 
 	public void add(Data data) {
-		try {
-			super.add(data);
-		} finally {
-			_check();
-		}
+		super.add(data);
+		_check();
 	}
 
 	public boolean remove(Data data) {
-		try {
-			return super.remove(data);
-		} finally {
-			_check();
-		}
+		boolean result = super.remove(data);
+		_check();
+		return result;
 	}
 	
 	DistanceFunction<? super Data> getDistanceFunction() {
@@ -98,11 +125,11 @@ public class MTreeTest {
 	@Test public void test01() { _test("f01"); }
 	@Test public void test02() { _test("f02"); }
 	@Test public void test03() { _test("f03"); }
+	@Test public void test04() { _test("f04"); }
 
 /*
 
 public:
-	void test04() { _test("f04"); }
 	void test05() { _test("f05"); }
 	void test06() { _test("f06"); }
 	void test07() { _test("f07"); }

@@ -1,10 +1,14 @@
 package mtree;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
+import java.util.Set;
 
 
 /* *
@@ -53,17 +57,13 @@ public class MTree<DATA> {
 	
 	// Exception classes
 	private static class SplitNodeReplacement extends Exception {
-		/*
-	public:
-		enum { NUM_NODES = 2 };
-		Node* newNodes[NUM_NODES];
-		SplitNodeReplacement(Node* newNodes[NUM_NODES]) {
-			for(int i = 0; i < NUM_NODES; ++i) {
-				this->newNodes[i] = newNodes[i];
-			}
-
+		// A subclass of Throwable cannot be generic.  :-(
+		// So, we have newNodes declared as Object[] instead of Node[].
+		private Object newNodes[];
+		
+		private SplitNodeReplacement(Object... newNodes) {
+			this.newNodes = newNodes;
 		}
-		*/
 	}
 	
 	private static class RootNodeReplacement extends Exception {
@@ -220,12 +220,9 @@ public class MTree<DATA> {
 									Entry entry = (Entry)child;
 									nearestQueue.add(new ItemWithDistances<Entry>(entry, childDistance, childMinDistance));
 								} else {
-									throw new RuntimeException("Not implemented");
-									/*
-									Node* node = dynamic_cast<Node*>(child);
-									assert(node != NULL);
-									pendingQueue.push({node, childDistance, childMinDistance});
-									*/
+									@SuppressWarnings("unchecked")
+									Node childNode = (Node)child;
+									pendingQueue.add(new ItemWithDistances<Node>(childNode, childDistance, childMinDistance));
 								}
 							}
 						}
@@ -234,10 +231,7 @@ public class MTree<DATA> {
 					if(pendingQueue.isEmpty()) {
 						nextPendingMinDistance = Double.POSITIVE_INFINITY;
 					} else {
-						throw new RuntimeException("Not implemented");
-						/*
-						nextPendingMinDistance = pendingQueue.top().minDistance;
-						*/
+						nextPendingMinDistance = pendingQueue.peek().minDistance;
 					}
 				}
 
@@ -313,6 +307,7 @@ public class MTree<DATA> {
 	protected int minNodeCapacity;
 	protected int maxNodeCapacity;
 	protected DistanceFunction<? super DATA> distanceFunction;
+	protected SplitFunction<DATA> splitFunction;
 	protected Node root;
 	
 	
@@ -328,22 +323,30 @@ public class MTree<DATA> {
 	 * @param split_function An instance of @c SplitFunction.
 	 *
 	 */
-	public MTree(DistanceFunction<? super DATA> distanceFunction) {
-		this(DEFAULT_MIN_NODE_CAPACITY, distanceFunction);
+	public MTree(DistanceFunction<? super DATA> distanceFunction,
+			SplitFunction<DATA> splitFunction) {
+		this(DEFAULT_MIN_NODE_CAPACITY, distanceFunction, splitFunction);
 	}
 	
-	public MTree(int minNodeCapacity, DistanceFunction<? super DATA> distanceFunction) {
-		this(minNodeCapacity, 2 * minNodeCapacity - 1, distanceFunction);
+	public MTree(int minNodeCapacity,
+			DistanceFunction<? super DATA> distanceFunction,
+			SplitFunction<DATA> splitFunction) {
+		this(minNodeCapacity, 2 * minNodeCapacity - 1, distanceFunction, splitFunction);
 	}
 	
-	public MTree(int minNodeCapacity, int maxNodeCapacity, DistanceFunction<? super DATA> distanceFunction) {
-		if(minNodeCapacity < 2  ||  maxNodeCapacity <= minNodeCapacity  ||  distanceFunction == null) {
+	public MTree(int minNodeCapacity, int maxNodeCapacity,
+			DistanceFunction<? super DATA> distanceFunction,
+			SplitFunction<DATA> splitFunction)
+	{
+		if(minNodeCapacity < 2  ||  maxNodeCapacity <= minNodeCapacity  ||
+		   distanceFunction == null  ||  splitFunction == null) {
 			throw new IllegalArgumentException();
 		}
 		
 		this.minNodeCapacity = minNodeCapacity;
 		this.maxNodeCapacity = maxNodeCapacity;
 		this.distanceFunction = distanceFunction;
+		this.splitFunction = splitFunction;
 		this.root = null;
 	}
 	
@@ -367,17 +370,14 @@ public class MTree<DATA> {
 			try {
 				root.addData(data, distance);
 			} catch(SplitNodeReplacement e) {
-				throw new RuntimeException("Not implemented");
-				/*
-				Node* newRoot = new RootNode(root->data);
-				delete root;
+				Node newRoot = new RootNode(data);
 				root = newRoot;
-				for(int i = 0; i < SplitNodeReplacement::NUM_NODES; ++i) {
-					Node* newNode = e.newNodes[i];
-					double distance = distance_function(root->data, newNode->data);
-					root->addChild(newNode, distance, this);
+				for(int i = 0; i < e.newNodes.length; i++) {
+					@SuppressWarnings("unchecked")
+					Node newNode = (Node) e.newNodes[i];
+					distance = distanceFunction.calculate(root.data, newNode.data);
+					root.addChild(newNode, distance);
 				}
-				 */
 			}
 		}
 	}
@@ -498,7 +498,7 @@ protected:
 
 		protected void _checkDistanceToParent() {
 			assert !(this instanceof MTree.RootLeafNode);
-			// assert !(this instanceof MTree.RootNode);	// TODO: pending
+			assert !(this instanceof MTree.RootNode);
 			assert distanceToParent >= 0;
 		}
 	}
@@ -508,17 +508,17 @@ protected:
 	private abstract class Node extends IndexItem {
 
 		protected Map<DATA, IndexItem> children = new HashMap<DATA, IndexItem>();
-		protected Rootness rootness;
+		protected Rootness       rootness;
 		protected Leafness<DATA> leafness;
-
+		
 		private
 		<R extends NodeTrait & Rootness, L extends NodeTrait & Leafness<DATA>>
 		Node(DATA data, R rootness, L leafness) {
 			super(data);
-
+			
 			rootness.thisNode = this;
 			this.rootness = rootness;
-
+			
 			leafness.thisNode = this;
 			this.leafness = leafness;
 		}
@@ -563,49 +563,50 @@ protected:
 
 		private final void checkMaxCapacity() throws SplitNodeReplacement {
 			if(children.size() > MTree.this.maxNodeCapacity) {
-				throw new RuntimeException("Not implemented");
-				/*
-				Partition firstPartition;
-				for(typename ChildrenMap::iterator i = children.begin(); i != children.end(); ++i) {
-					firstPartition.insert(i->first);
+				Set<DATA> firstPartition = new HashSet<DATA>();
+				for(DATA data : children.keySet()) {
+					firstPartition.add(data);
 				}
-
-				cached_distance_function_type cachedDistanceFunction(mtree->distance_function);
-
-				Partition secondPartition;
-				PromotedPair promoted = mtree->split_function(firstPartition, secondPartition, cachedDistanceFunction);
-
-				Node* newNodes[2];
+				
+				DistanceFunction<? super DATA> cachedDistanceFunction = DistanceFunctions.cached(MTree.this.distanceFunction);
+				
+				Set<DATA> secondPartition = new HashSet<DATA>();
+				DATA[] promoted = MTree.this.splitFunction.process(firstPartition, secondPartition, cachedDistanceFunction);
+				
+				Node newNode0 = null;
+				Node newNode1 = null;
 				for(int i = 0; i < 2; ++i) {
-					Data& promotedData    = (i == 0) ? promoted.first : promoted.second;
-					Partition& partition = (i == 0) ? firstPartition : secondPartition;
-
-					Node* newNode = newSplitNodeReplacement(promotedData);
-					for(typename Partition::iterator j = partition.begin(); j != partition.end(); ++j) {
-						const Data& data = *j;
-						IndexItem* child = children[data];
-						children.erase(data);
-						double distance = cachedDistanceFunction(promotedData, data);
-						newNode->addChild(child, distance, mtree);
+					DATA promotedData   = promoted[i];
+					Set<DATA> partition = (i == 0) ? firstPartition : secondPartition;
+					
+					Node newNode = newSplitNodeReplacement(promotedData);
+					for(DATA data : partition) {
+						IndexItem child = children.get(data);
+						children.remove(data);
+						double distance = cachedDistanceFunction.calculate(promotedData, data);
+						newNode.addChild(child, distance);
 					}
 
-					newNodes[i] = newNode;
+					if(i == 0) {
+						newNode0 = newNode;
+					} else {
+						newNode1 = newNode;
+					}
 				}
-				assert(children.empty());
+				assert children.isEmpty();
 
-				throw SplitNodeReplacement(newNodes);
-				 */
+				throw new SplitNodeReplacement(newNode0, newNode1);
 			}
 
 		}
 
-		/*
-	protected:
-		virtual Node* newSplitNodeReplacement(const Data&) const = 0;
+		protected Node newSplitNodeReplacement(DATA data) {
+			return leafness.newSplitNodeReplacement(data);
+		}
 
-	public:
-		virtual void addChild(IndexItem* child, double distance, const mtree* mtree) = 0;
-		*/
+		protected void addChild(IndexItem child, double distance) {
+			leafness.addChild(child, distance);
+		}
 
 		void removeData(DATA data, double distance) throws RootNodeReplacement, NodeUnderCapacity, DataNotFound {
 			doRemoveData(data, distance);
@@ -614,7 +615,9 @@ protected:
 			}
 		}
 
-		abstract int getMinCapacity();
+		protected int getMinCapacity() {
+			return rootness.getMinCapacity();
+		}
 
 		private void updateMetrics(IndexItem child, double distance) {
 			child.distanceToParent = distance;
@@ -644,6 +647,10 @@ protected:
 			double sum = child.distanceToParent + child.radius;
 			assert sum <= this.radius;
 		}
+		
+		protected void _checkDistanceToParent() {
+			rootness._checkDistanceToParent();
+		}
 
 		private MTree<DATA> mtree() {
 			return MTree.this;
@@ -659,11 +666,14 @@ protected:
 	
 	private interface Leafness<DATA> {
 		void doAddData(DATA data, double distance);
+		void addChild(MTree<DATA>.IndexItem child, double distance);
 		void doRemoveData(DATA data, double distance) throws DataNotFound;
+		MTree<DATA>.Node newSplitNodeReplacement(DATA data);
 		void _checkChildClass(MTree<DATA>.IndexItem child);
 	}
 	
 	private interface Rootness {
+		int getMinCapacity();
 		void _checkDistanceToParent();
 		void _checkMinCapacity();
 	}
@@ -673,6 +683,11 @@ protected:
 	private class RootNodeTrait extends NodeTrait implements Rootness {
 		
 		@Override
+		public int getMinCapacity() {
+			throw new RuntimeException("Should not be called!");
+		}
+		
+		@Override
 		public void _checkDistanceToParent() {
 			assert thisNode.distanceToParent == -1;
 		}
@@ -680,6 +695,26 @@ protected:
 		@Override
 		public void _checkMinCapacity() {
 			thisNode._checkMinCapacity();
+		}
+		
+	};
+
+
+	private class NonRootNodeTrait extends NodeTrait implements Rootness {
+		
+		@Override
+		public int getMinCapacity() {
+			return MTree.this.minNodeCapacity;
+		}
+		
+		@Override
+		public void _checkMinCapacity() {
+			assert thisNode.children.size() >= thisNode.mtree().minNodeCapacity;
+		}
+		
+		@Override
+		public void _checkDistanceToParent() {
+			assert thisNode.distanceToParent >= 0;
 		}
 	};
 	
@@ -694,18 +729,17 @@ protected:
 			thisNode.updateMetrics(entry, distance);
 		}
 
-		/*
-		void addChild(IndexItem* child, double distance, const mtree* mtree) {
-			assert(this->children.find(child->data) == this->children.end());
-			this->children[child->data] = child;
-			assert(this->children.find(child->data) != this->children.end());
-			updateMetrics(child, distance);
+		public void addChild(IndexItem child, double distance) {
+			assert !thisNode.children.containsKey(child.data);
+			thisNode.children.put(child.data, child);
+			assert thisNode.children.containsKey(child.data);
+			thisNode.updateMetrics(child, distance);
 		}
-
-		Node* newSplitNodeReplacement(const Data& data) const {
-			return new LeafNode(data);
+		
+		public Node newSplitNodeReplacement(DATA data) {
+			return thisNode.mtree().new LeafNode(data);
 		}
-		*/
+		
 
 		@Override
 		public void doRemoveData(DATA data, double distance) throws DataNotFound {
@@ -718,20 +752,22 @@ protected:
 			assert child instanceof MTree.Entry;
 		}
 	}
-	/*
 
 
-	class NonLeafNodeTrait : public virtual Node {
-		void doAddData(const Data& data, double distance, const mtree* mtree) {
+	class NonLeafNodeTrait extends NodeTrait implements Leafness<DATA> {
+		
+		public void doAddData(DATA data, double distance) {
+			throw new RuntimeException("Not implemented");
+			/*
 			struct CandidateChild {
 				Node* node;
 				double distance;
 				double metric;
 			};
-
+			
 			CandidateChild minRadiusIncreaseNeeded = { NULL, -1.0, std::numeric_limits<double>::infinity() };
 			CandidateChild nearestDistance         = { NULL, -1.0, std::numeric_limits<double>::infinity() };
-
+			
 			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
 				Node* child = dynamic_cast<Node*>(i->second);
 				assert(child != NULL);
@@ -747,60 +783,62 @@ protected:
 					}
 				}
 			}
-
+			
 			CandidateChild chosen = (nearestDistance.node != NULL)
-			                      ? nearestDistance
-			                      : minRadiusIncreaseNeeded;
-
+					? nearestDistance
+							: minRadiusIncreaseNeeded;
+			
 			Node* child = chosen.node;
 			try {
 				child->addData(data, chosen.distance, mtree);
 				updateRadius(child);
 			} catch(SplitNodeReplacement& e) {
 				// Replace current child with new nodes
-#ifndef NDEBUG
+				#ifndef NDEBUG
 				size_t _ =
-#endif
-					this->children.erase(child->data);
+				#endif
+				this->children.erase(child->data);
 				assert(_ == 1);
 				delete child;
-
+				
 				for(int i = 0; i < e.NUM_NODES; ++i) {
 					Node* newChild = e.newNodes[i];
 					double distance = mtree->distance_function(this->data, newChild->data);
 					addChild(newChild, distance, mtree);
 				}
 			}
+			*/
 		}
+		
 
-
-		void addChild(IndexItem* newChild_, double distance, const mtree* mtree) {
-			Node* newChild = dynamic_cast<Node*>(newChild_);
-			assert(newChild != NULL);
-
-			struct ChildWithDistance {
-				Node* child;
+		public void addChild(IndexItem newChild_, double distance) {
+			@SuppressWarnings("unchecked")
+			Node newChild = (Node) newChild_;
+			
+			class ChildWithDistance {
+				Node child;
 				double distance;
-			};
-
-			std::vector<ChildWithDistance> newChildren;
-			newChildren.push_back(ChildWithDistance{newChild, distance});
-
-			while(!newChildren.empty()) {
-				ChildWithDistance cwd = newChildren.back();
-				newChildren.pop_back();
-
+				private ChildWithDistance(Node child, double distance) {
+					this.child = child;
+					this.distance = distance;
+				}
+			}
+			
+			Deque<ChildWithDistance> newChildren = new ArrayDeque<ChildWithDistance>();
+			newChildren.addFirst(new ChildWithDistance(newChild, distance));
+			
+			while(!newChildren.isEmpty()) {
+				ChildWithDistance cwd = newChildren.removeFirst();
+				
 				newChild = cwd.child;
 				distance = cwd.distance;
-				typename Node::ChildrenMap::iterator i = this->children.find(newChild->data);
-				if(i == this->children.end()) {
-					this->children[newChild->data] = newChild;
-					updateMetrics(newChild, distance);
-				} else {
+				if(thisNode.children.containsKey(newChild.data)) {
+					throw new RuntimeException("Not implemented");
+					/*
 					Node* existingChild = dynamic_cast<Node*>(this->children[newChild->data]);
 					assert(existingChild != NULL);
 					assert(existingChild->data == newChild->data);
-
+					
 					// Transfer the _children_ of the newChild to the existingChild
 					for(typename Node::ChildrenMap::iterator i = newChild->children.begin(); i != newChild->children.end(); ++i) {
 						IndexItem* grandchild = i->second;
@@ -808,79 +846,97 @@ protected:
 					}
 					newChild->children.clear();
 					delete newChild;
-
+					
 					try {
 						existingChild->checkMaxCapacity(mtree);
 					} catch(SplitNodeReplacement& e) {
-#ifndef NDEBUG
+						#ifndef NDEBUG
 						size_t _ =
-#endif
-							this->children.erase(existingChild->data);
+						#endif
+						this->children.erase(existingChild->data);
 						assert(_ == 1);
 						delete existingChild;
-
+						
 						for(int i = 0; i < e.NUM_NODES; ++i) {
 							Node* newNode = e.newNodes[i];
 							double distance = mtree->distance_function(this->data, newNode->data);
 							newChildren.push_back(ChildWithDistance{newNode, distance});
 						}
 					}
+					*/
+				} else {
+					thisNode.children.put(newChild.data, newChild);
+					thisNode.updateMetrics(newChild, distance);
 				}
 			}
 		}
 
 
-		Node* newSplitNodeReplacement(const Data& data) const {
+		public Node newSplitNodeReplacement(DATA data) {
+			throw new RuntimeException("Not implemented");
+			/*
 			return new InternalNode(data);
+			*/
 		}
 
 
-		void doRemoveData(const Data& data, double distance, const mtree* mtree) throw (DataNotFound) {
-			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
-				Node* child = dynamic_cast<Node*>(i->second);
-				assert(child != NULL);
-				if(abs(distance - child->distanceToParent) <= child->radius) {
-					double distanceToChild = mtree->distance_function(data, child->data);
-					if(distanceToChild <= child->radius) {
+		public void doRemoveData(DATA data, double distance) throws DataNotFound {
+			for(IndexItem childItem : thisNode.children.values()) {
+				@SuppressWarnings("unchecked")
+				Node child = (Node)childItem;
+				if(Math.abs(distance - child.distanceToParent) <= child.radius) {
+					double distanceToChild = thisNode.mtree().distanceFunction.calculate(data, child.data);
+					if(distanceToChild <= child.radius) {
 						try {
-							child->removeData(data, distanceToChild, mtree);
+							child.removeData(data, distanceToChild);
+							throw new RuntimeException("Not implemented");
+							/*
 							updateRadius(child);
 							return;
-						} catch(DataNotFound&) {
+							*/
+						} catch(DataNotFound e) {
 							// If DataNotFound was thrown, then the data was not found in the child
-						} catch(NodeUnderCapacity&) {
-							Node* expandedChild = balanceChildren(child, mtree);
-							updateRadius(expandedChild);
+						} catch(NodeUnderCapacity e) {
+							Node expandedChild = balanceChildren(child);
+							thisNode.updateRadius(expandedChild);
 							return;
+						} catch (RootNodeReplacement e) {
+							throw new RuntimeException("Should never happen!");
 						}
 					}
 				}
 			}
-
+			throw new RuntimeException("Not implemented");
+			/*
+			
 			throw DataNotFound{data};
+			*/
 		}
 
-
-		Node* balanceChildren(Node* theChild, const mtree* mtree) {
+		
+		private Node balanceChildren(Node theChild) {
 			// Tries to find anotherChild which can donate a grand-child to theChild.
+			
+			Node nearestDonor = null;
+			double distanceNearestDonor = Double.POSITIVE_INFINITY;
+			
+			Node nearestMergeCandidate = null;
+			double distanceNearestMergeCandidate = Double.POSITIVE_INFINITY;
 
-			Node* nearestDonor = NULL;
-			double distanceNearestDonor = std::numeric_limits<double>::infinity();
-
-			Node* nearestMergeCandidate = NULL;
-			double distanceNearestMergeCandidate = std::numeric_limits<double>::infinity();
-
-			for(typename Node::ChildrenMap::iterator i = this->children.begin(); i != this->children.end(); ++i) {
-				Node* anotherChild = dynamic_cast<Node*>(i->second);
-				assert(anotherChild != NULL);
+			for(IndexItem child : thisNode.children.values()) {
+				@SuppressWarnings("unchecked")
+				Node anotherChild = (Node)child;
 				if(anotherChild == theChild) continue;
 
-				double distance = mtree->distance_function(theChild->data, anotherChild->data);
-				if(anotherChild->children.size() > anotherChild->getMinCapacity(mtree)) {
+				double distance = thisNode.mtree().distanceFunction.calculate(theChild.data, anotherChild.data);
+				if(anotherChild.children.size() > anotherChild.getMinCapacity()) {
+					throw new RuntimeException("Not implemented");
+					/*
 					if(distance < distanceNearestDonor) {
 						distanceNearestDonor = distance;
 						nearestDonor = anotherChild;
 					}
+					*/
 				} else {
 					if(distance < distanceNearestMergeCandidate) {
 						distanceNearestMergeCandidate = distance;
@@ -889,19 +945,19 @@ protected:
 				}
 			}
 
-			if(nearestDonor == NULL) {
+			if(nearestDonor == null) {
 				// Merge
-				for(typename Node::ChildrenMap::iterator i = theChild->children.begin(); i != theChild->children.end(); ++i) {
-					IndexItem* grandchild = i->second;
-					double distance = mtree->distance_function(grandchild->data, nearestMergeCandidate->data);
-					nearestMergeCandidate->addChild(grandchild, distance, mtree);
+				for(IndexItem grandchild : theChild.children.values()) {
+					double distance = thisNode.mtree().distanceFunction.calculate(grandchild.data, nearestMergeCandidate.data);
+					nearestMergeCandidate.addChild(grandchild, distance);
 				}
 
-				theChild->children.clear();
-				this->children.erase(theChild->data);
-				delete theChild;
+				IndexItem removed = thisNode.children.remove(theChild.data);
+				assert removed != null;
 				return nearestMergeCandidate;
 			} else {
+				throw new RuntimeException("Not implemented");
+				/*
 				// Donate
 				// Look for the nearest grandchild
 				IndexItem* nearestGrandchild;
@@ -922,16 +978,16 @@ protected:
 				assert(_ == 1);
 				theChild->addChild(nearestGrandchild, nearestGrandchildDistance, mtree);
 				return theChild;
+				 */
 			}
 		}
 
 
-		void _checkChildClass(IndexItem* child) const {
-			assert(dynamic_cast<InternalNode*>(child) != NULL
-			   ||  dynamic_cast<LeafNode*>(child)     != NULL);
+		public void _checkChildClass(IndexItem child) {
+			assert child instanceof MTree.InternalNode
+			    || child instanceof MTree.LeafNode;
 		}
-	};
-	*/
+	}
 
 
 	private class RootLeafNode extends Node {
@@ -949,11 +1005,7 @@ protected:
 			}
 		}
 		
-		protected void _checkDistanceToParent() {
-			rootness._checkDistanceToParent();
-		}
-
-		int getMinCapacity() {
+		protected int getMinCapacity() {
 			return 1;
 		}
 
@@ -961,61 +1013,65 @@ protected:
 			assert children.size() >= 1;
 		}
 	}
-	/*
 
-	class RootNode : public RootNodeTrait, public NonLeafNodeTrait {
-	public:
-		RootNode(const Data& data) : Node(data) {}
+	private class RootNode extends Node {
 
-	private:
-		void removeData(const Data& data, double distance, const mtree* mtree) throw (RootNodeReplacement, NodeUnderCapacity, DataNotFound) {
+		private RootNode(DATA data) {
+			super(data, new RootNodeTrait(), new NonLeafNodeTrait());
+		}
+		
+		void removeData(DATA data, double distance) throws RootNodeReplacement, NodeUnderCapacity, DataNotFound {
 			try {
-				Node::removeData(data, distance, mtree);
-			} catch(NodeUnderCapacity&) {
+				super.removeData(data, distance);
+			} catch(NodeUnderCapacity e) {
 				// Promote the only child to root
-				Node* theChild = dynamic_cast<Node*>(this->children.begin()->second);
-				Node* newRoot;
-				if(dynamic_cast<InternalNode*>(theChild) != NULL) {
-					newRoot = new RootNode(theChild->data);
+				@SuppressWarnings("unchecked")
+				Node theChild = (Node)(children.values().iterator().next());
+				Node newRoot;
+				if(theChild instanceof MTree.InternalNode) {
+					newRoot = new RootNode(theChild.data);
 				} else {
-					assert(dynamic_cast<LeafNode*>(theChild) != NULL);
-					newRoot = new RootLeafNode(theChild->data);
+					assert theChild instanceof MTree.LeafNode;
+					newRoot = new RootLeafNode(theChild.data);
 				}
 
-				for(typename Node::ChildrenMap::iterator i = theChild->children.begin(); i != theChild->children.end(); ++i) {
-					IndexItem* grandchild = i->second;
-					double distance = mtree->distance_function(newRoot->data, grandchild->data);
-					newRoot->addChild(grandchild, distance, mtree);
+				for(IndexItem grandchild : theChild.children.values()) {
+					distance = MTree.this.distanceFunction.calculate(newRoot.data, grandchild.data);
+					newRoot.addChild(grandchild, distance);
 				}
-				theChild->children.clear();
+				theChild.children.clear();
 
-				throw RootNodeReplacement{newRoot};
+				throw new RootNodeReplacement(newRoot);
 			}
 		}
-
-
-		size_t getMinCapacity(const mtree* mtree) const {
+		
+		
+		@Override
+		protected int getMinCapacity() {
 			return 2;
 		}
+		
+		@Override
+		void _checkMinCapacity() {
+			assert children.size() >= 2;
+		}
+	}
 
-		void _checkMinCapacity(const mtree* mtree) const {
-			assert(this->children.size() >= 2);
+
+	private class InternalNode extends Node {
+		private InternalNode(DATA data) {
+			super(data, new NonRootNodeTrait(), new NonLeafNodeTrait());
 		}
 	};
 
 
-	class InternalNode : public NonRootNodeTrait, public NonLeafNodeTrait {
-	public:
-		InternalNode(const Data& data) : Node(data) { }
-	};
+	private class LeafNode extends Node {
 
+		public LeafNode(DATA data) {
+			super(data, new NonRootNodeTrait(), new LeafNodeTrait());
+		}
+	}
 
-	class LeafNode : public NonRootNodeTrait, public LeafNodeTrait {
-	public:
-		LeafNode(const Data& data) : Node(data) { }
-	};
-
-	 */
 
 	private class Entry extends IndexItem {
 		private Entry(DATA data) {

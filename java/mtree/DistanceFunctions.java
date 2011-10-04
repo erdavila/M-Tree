@@ -1,9 +1,65 @@
 package mtree;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public abstract class DistanceFunctions {
 	private DistanceFunctions() {}
+	
+	
+	public static <Data> DistanceFunction<Data> cached(final DistanceFunction<Data> distanceFunction) {
+		return new DistanceFunction<Data>() {
+			class Pair {
+				Data data1;
+				Data data2;
+				
+				public Pair(Data data1, Data data2) {
+					this.data1 = data1;
+					this.data2 = data2;
+				}
+
+				@Override
+				public int hashCode() {
+					return data1.hashCode() ^ data2.hashCode();
+				}
+				
+				@Override
+				public boolean equals(Object arg0) {
+					if(arg0 instanceof Pair) {
+						Pair that = (Pair) arg0;
+						return this.data1.equals(that.data1)
+						    && this.data2.equals(that.data2);
+					} else {
+						return false;
+					}
+				}
+			}
+			
+			private final Map<Pair, Double> cache = new HashMap<Pair, Double>();
+			
+			@Override
+			public double calculate(Data data1, Data data2) {
+				Pair pair1 = new Pair(data1, data2);
+				Double distance = cache.get(pair1);
+				if(distance != null) {
+					return distance;
+				}
+				
+				Pair pair2 = new Pair(data2, data1);
+				distance = cache.get(pair2);
+				if(distance != null) {
+					return distance;
+				}
+				
+				distance = distanceFunction.calculate(data1, data2);
+				cache.put(pair1, distance);
+				cache.put(pair2, distance);
+				return distance;
+			}
+		};
+	}
+	
 	
 	
 	public interface NumberSequence {
