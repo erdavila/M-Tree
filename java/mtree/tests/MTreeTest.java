@@ -142,38 +142,37 @@ public class MTreeTest {
 	@Test public void test18() { _test("f18"); }
 	@Test public void test19() { _test("f19"); }
 	@Test public void test20() { _test("f20"); }
+	
+	@Test public void testLots() { _test("fLots"); }
 
-/*
-
-public:
-	void testLots() { _test("fLots"); }
-
-
-	void testRemoveNonExisting() {
+	
+	@Test
+	public void testRemoveNonExisting() {
 		// Empty
-		assert(!mtree.remove({99, 77}));
+		assert !mtree.remove(new Data(99, 77));
 
 		// With some items
-		mtree.add({4, 44});
-		assert(!mtree.remove({99, 77}));
+		mtree.add(new Data(4, 44));
+		assert(!mtree.remove(new Data(99, 77)));
 
-		mtree.add({95, 43});
-		assert(!mtree.remove({99, 77}));
+		mtree.add(new Data(95, 43));
+		assert(!mtree.remove(new Data(99, 77)));
 
-		mtree.add({76, 21});
-		assert(!mtree.remove({99, 77}));
+		mtree.add(new Data(76, 21));
+		assert(!mtree.remove(new Data(99, 77)));
 
-		mtree.add({64, 53});
-		assert(!mtree.remove({99, 77}));
+		mtree.add(new Data(64, 53));
+		assert(!mtree.remove(new Data(99, 77)));
 
-		mtree.add({47, 3});
-		assert(!mtree.remove({99, 77}));
+		mtree.add(new Data(47, 3));
+		assert(!mtree.remove(new Data(99, 77)));
 
-		mtree.add({26, 11});
-		assert(!mtree.remove({99, 77}));
+		mtree.add(new Data(26, 11));
+		assert(!mtree.remove(new Data(99, 77)));
 	}
 
-
+	/*
+	
 	void testGeneratedCase01() { _test("fG01"); }
 	void testGeneratedCase02() { _test("fG02"); }
 
