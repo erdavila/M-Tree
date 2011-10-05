@@ -872,10 +872,7 @@ protected:
 
 
 		public Node newSplitNodeReplacement(DATA data) {
-			throw new RuntimeException("Not implemented");
-			/*
 			return new InternalNode(data);
-			*/
 		}
 
 
