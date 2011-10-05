@@ -832,37 +832,29 @@ protected:
 				newChild = cwd.child;
 				distance = cwd.distance;
 				if(thisNode.children.containsKey(newChild.data)) {
-					throw new RuntimeException("Not implemented");
-					/*
-					Node* existingChild = dynamic_cast<Node*>(this->children[newChild->data]);
-					assert(existingChild != NULL);
-					assert(existingChild->data == newChild->data);
+					@SuppressWarnings("unchecked")
+					Node existingChild = (Node) thisNode.children.get(newChild.data);
+					assert existingChild.data.equals(newChild.data);
 					
 					// Transfer the _children_ of the newChild to the existingChild
-					for(typename Node::ChildrenMap::iterator i = newChild->children.begin(); i != newChild->children.end(); ++i) {
-						IndexItem* grandchild = i->second;
-						existingChild->addChild(grandchild, grandchild->distanceToParent, mtree);
+					for(IndexItem grandchild : newChild.children.values()) {
+						existingChild.addChild(grandchild, grandchild.distanceToParent);
 					}
-					newChild->children.clear();
-					delete newChild;
+					newChild.children.clear();
 					
 					try {
-						existingChild->checkMaxCapacity(mtree);
-					} catch(SplitNodeReplacement& e) {
-						#ifndef NDEBUG
-						size_t _ =
-						#endif
-						this->children.erase(existingChild->data);
-						assert(_ == 1);
-						delete existingChild;
+						existingChild.checkMaxCapacity();
+					} catch(SplitNodeReplacement e) {
+						IndexItem _ = thisNode.children.remove(existingChild.data);
+						assert _ != null;
 						
-						for(int i = 0; i < e.NUM_NODES; ++i) {
-							Node* newNode = e.newNodes[i];
-							double distance = mtree->distance_function(this->data, newNode->data);
-							newChildren.push_back(ChildWithDistance{newNode, distance});
+						for(int i = 0; i < e.newNodes.length; ++i) {
+							@SuppressWarnings("unchecked")
+							Node newNode = (Node) e.newNodes[i];
+							distance = thisNode.mtree().distanceFunction.calculate(thisNode.data, newNode.data);
+							newChildren.addFirst(new ChildWithDistance(newNode, distance));
 						}
 					}
-					*/
 				} else {
 					thisNode.children.put(newChild.data, newChild);
 					thisNode.updateMetrics(newChild, distance);

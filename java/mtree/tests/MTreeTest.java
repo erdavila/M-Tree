@@ -171,10 +171,10 @@ public class MTreeTest {
 		assert(!mtree.remove(new Data(99, 77)));
 	}
 
-	/*
 	
-	void testGeneratedCase01() { _test("fG01"); }
-	void testGeneratedCase02() { _test("fG02"); }
+	@Test public void testGeneratedCase01() { _test("fG01"); }
+	@Test public void testGeneratedCase02() { _test("fG02"); }
+	/*
 
 	void testNotRandom() {
 		/*
