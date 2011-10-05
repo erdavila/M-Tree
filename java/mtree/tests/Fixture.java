@@ -30,7 +30,7 @@ class Fixture {
 	List<Action> actions;
 
 	
-	private static String path(String fixtureName) {
+	static String path(String fixtureName) {
 		return "cpp/tests/fixtures/" + fixtureName + ".txt";
 	}
 

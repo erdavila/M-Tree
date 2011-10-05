@@ -2,6 +2,7 @@ package mtree.tests;
 
 import static org.junit.Assert.*;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -174,24 +175,25 @@ public class MTreeTest {
 	
 	@Test public void testGeneratedCase01() { _test("fG01"); }
 	@Test public void testGeneratedCase02() { _test("fG02"); }
-	/*
 
-	void testNotRandom() {
+	@Test
+	public void testNotRandom() {
 		/*
 		 * To generate a random test, execute the following commands:
 		 * 		py/mtree/tests/fixtures/generator.py -a500 -r0.2 > py/mtree/tests/fixtures/fNotRandom.py
 		 * 		cpp/convert-fixture-to-cpp.py fNotRandom > cpp/tests/fixtures/fNotRandom.txt
-		 * /
+		 */
 
-		const string fixtureName = "fNotRandom";
-		string fixtureFileName = Fixture::path(fixtureName);
-		if(!ifstream(fixtureFileName)) {
-			cout << "\tskipping..." << endl;
-			return;
+		String fixtureName = "fNotRandom";
+		String fixtureFileName = Fixture.path(fixtureName);
+		File fixtureFile = new File(fixtureFileName);
+		if(!fixtureFile.exists()) {
+			throw new RuntimeException("The file " + fixtureFile + " does not exist");
 		}
-		_test(fixtureName.c_str());
+		_test(fixtureName);
 	}
 
+	/*
 
 	void testIterators() {
 		struct DistanceFunction {
