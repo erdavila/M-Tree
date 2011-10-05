@@ -130,22 +130,22 @@ public class MTreeTest {
 	@Test public void test06() { _test("f06"); }
 	@Test public void test07() { _test("f07"); }
 	@Test public void test08() { _test("f08"); }
+	@Test public void test09() { _test("f09"); }
+	@Test public void test10() { _test("f10"); }
+	@Test public void test11() { _test("f11"); }
+	@Test public void test12() { _test("f12"); }
+	@Test public void test13() { _test("f13"); }
+	@Test public void test14() { _test("f14"); }
+	@Test public void test15() { _test("f15"); }
+	@Test public void test16() { _test("f16"); }
+	@Test public void test17() { _test("f17"); }
+	@Test public void test18() { _test("f18"); }
+	@Test public void test19() { _test("f19"); }
+	@Test public void test20() { _test("f20"); }
 
 /*
 
 public:
-	void test09() { _test("f09"); }
-	void test10() { _test("f10"); }
-	void test11() { _test("f11"); }
-	void test12() { _test("f12"); }
-	void test13() { _test("f13"); }
-	void test14() { _test("f14"); }
-	void test15() { _test("f15"); }
-	void test16() { _test("f16"); }
-	void test17() { _test("f17"); }
-	void test18() { _test("f18"); }
-	void test19() { _test("f19"); }
-	void test20() { _test("f20"); }
 	void testLots() { _test("fLots"); }
 
 

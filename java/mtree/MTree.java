@@ -899,11 +899,8 @@ protected:
 					}
 				}
 			}
-			throw new RuntimeException("Not implemented");
-			/*
 			
-			throw DataNotFound{data};
-			*/
+			throw new DataNotFound(data);
 		}
 
 		
