@@ -5,9 +5,10 @@ import static org.junit.Assert.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 import mtree.ComposedSplitFunction;
@@ -16,6 +17,8 @@ import mtree.DistanceFunctions;
 import mtree.MTree;
 import mtree.PartitionFunctions;
 import mtree.PromotionFunction;
+import mtree.utils.Pair;
+import mtree.utils.Utils;
 
 import org.junit.After;
 import org.junit.Before;
@@ -56,37 +59,19 @@ typedef mt::mtree<
 class MTreeClass extends MTree<Data> {
 	
 	private static final PromotionFunction<Data> nonRandomPromotion = new PromotionFunction<Data>() {
-	
 		@Override
-		public Data[] process(Set<Data> dataSet, DistanceFunction<? super Data> distanceFunction) {
-			List<Data> dataObjects = new ArrayList<Data>(dataSet);
-			Collections.sort(dataObjects, new Comparator<Data>() {
-				@Override
-				public int compare(Data data1, Data data2) {
-					for(int i = 0; i < data1.size()  &&  i < data2.size(); i++) {
-						if(data1.get(i) < data2.get(i)) {
-							return -1;
-						} else if(data1.get(i) > data2.get(i)) {
-							return +1;
-						}
-					}
-					
-					if(data1.size() < data2.size()) {
-						return -1;
-					} else if(data1.size() > data2.size()) {
-						return +1;
-					}
-					
-					return 0;
-				}
-			});
-			return new Data[]{ dataObjects.get(0), dataObjects.get(dataObjects.size()-1) };
+		public Pair<Data> process(Set<Data> dataSet, DistanceFunction<? super Data> distanceFunction) {
+			return Utils.minMax(dataSet);
 		}
 	};
 	
 	
 	MTreeClass() {
-		super(2, DistanceFunctions.EUCLIDEAN, new ComposedSplitFunction<Data>(nonRandomPromotion, PartitionFunctions.getBalancedPartition(Data.class)));
+		super(2, DistanceFunctions.EUCLIDEAN, new ComposedSplitFunction<Data>(
+				nonRandomPromotion,
+				new PartitionFunctions.BalancedPartition<Data>()
+			)
+		);
 	}
 
 	public void add(Data data) {
@@ -193,176 +178,121 @@ public class MTreeTest {
 		_test(fixtureName);
 	}
 
-	/*
 
-	void testIterators() {
-		struct DistanceFunction {
-			size_t operator()(int a, int b) const {
-				return std::abs(a - b);
+	private void assertIterator(
+			int expectedData,
+			double expectedDistance,
+			boolean expectedHasNext,
+			MTree<Integer>.ResultItem ri,
+			Iterator<MTree<Integer>.ResultItem> i
+		)
+	{
+		assertEquals(expectedData, ri.data.intValue());
+		assertEquals(expectedDistance, ri.distance, 0.0);
+		assertEquals(expectedHasNext, i.hasNext());
+		if(!expectedHasNext) {
+			try {
+				i.next();
+				fail();
+			} catch(NoSuchElementException e) {
+				assertTrue(true);
 			}
-		};
-
-		mt::mtree<int, DistanceFunction> mt;
+		}
+	}
+	
+	
+	@Test
+	public void testIterators() {
+		MTree<Integer> mt = new MTree<Integer>(
+				2,
+				new DistanceFunction<Integer>() {
+					@Override
+					public double calculate(Integer data1, Integer data2) {
+						return Math.abs(data1 - data2);
+					}
+				},
+				null
+			);
 
 		mt.add(1);
 		mt.add(2);
 		mt.add(3);
 		mt.add(4);
 
-		auto query = mt.get_nearest(0);
-
-#define assertBeginEnd(ITER, BEGIN, END);   \
-        assert(ITER BEGIN query.begin());   \
-        assert(ITER END   query.end());
-
-#define assertIter(ITER, BEGIN, END, DATA, DIST)   \
-		assertBeginEnd(ITER, BEGIN, END);          \
-        assertEqual(ITER->data, DATA);             \
-        assertEqual(ITER->distance, DIST)
-
-#define assertCompareIters(I1, C12, I2, C23, I3, C31, I1_)   \
-        assert(I1 C12 I2);                                   \
-        assert(I2 C23 I3);                                   \
-        assert(I3 C31 I1_)
+		MTree<Integer>.Query query = mt.getNearest(0);
 
 		// The first iterator
-		auto i1 = query.begin();
+		Iterator<MTree<Integer>.ResultItem> i1 = query.iterator();
+		assertTrue(i1.hasNext());
+		MTree<Integer>.ResultItem ri1 = i1.next();
 		/*     1  2  3  4  e
 		 * i1: *
-		 * /
-		assertIter(i1, ==, !=, 1, 1);
+		 */
+		assertIterator(1, 1, true, ri1, i1);
+		assertTrue(i1.hasNext());
 
 		// Advance the iterator
-		i1++;
+		ri1 = i1.next();
 		/*     1  2  3  4  e
 		 * i1:    *
-		 * /
-		assertIter(i1, !=, !=, 2, 2);
+		 */
+		assertIterator(2, 2, true, ri1, i1);
 
 		// Advance again
-		++i1;
+		ri1 = i1.next();
 		/*     1  2  3  4  e
 		 * i1:       *
-		 * /
-		assertIter(i1, !=, !=, 3, 3);
+		 */
+		assertIterator(3, 3, true, ri1, i1);
 
 		// Begin another iteration
-		auto i2 = query.begin();
+		Iterator<MTree<Integer>.ResultItem> i2 = query.iterator();
+		assertTrue(i2.hasNext());
+		MTree<Integer>.ResultItem ri2 = i2.next();
 		/*     1  2  3  4  e
 		 * i1:       *
 		 * i2: *
-		 * /
-		assertIter(i2, ==, !=, 1, 1);
-		assert(i2 != i1);
+		 */
+		assertIterator(1, 1, true, ri2, i2);
 		// The first iterator must not have been affected
-		assertIter(i1, !=, !=, 3, 3);
+		assertIterator(3, 3, true, ri1, i1);
 
-		// Copy the first iterator
-		auto i3 = i1;
-		/*     1  2  3  4  e
-		 * i1:       *
-		 * i2: *
-		 * i3:       *
-		 * /
-		assertIter(i3, !=, !=, 3, 3);
-		// The first iterator must not have been affected
-		assertIter(i1, !=, !=, 3, 3);
-		// The second iterator must not have been affected
-		assertIter(i2, ==, !=, 1, 1);
-		// Compare the iterators
-		assertCompareIters(i1, !=, i2, !=, i3, ==, i1);
-
-		// Now continue until all the iterators reach the end
-		++i2;
+		// Advance the second iterator
+		ri2 = i2.next();
 		/*     1  2  3  4  e
 		 * i1:       *
 		 * i2:    *
-		 * i3:       *
-		 * /
-		assertIter(i1, !=, !=, 3, 3);
-		assertIter(i2, !=, !=, 2, 2);
-		assertIter(i3, !=, !=, 3, 3);
-		assertCompareIters(i1, !=, i2, !=, i3, ==, i1);
+		 */
+		assertIterator(2, 2, true, ri2, i2);
+		// The first iterator must not have been affected
+		assertIterator(3, 3, true, ri1, i1);
 
-		i1++;
+		// Now continue until the iterators reach the end
+		ri1 = i1.next();
 		/*     1  2  3  4  e
 		 * i1:          *
 		 * i2:    *
-		 * i3:       *
-		 * /
-		assertIter(i1, !=, !=, 4, 4);
-		assertIter(i2, !=, !=, 2, 2);
-		assertIter(i3, !=, !=, 3, 3);
-		assertCompareIters(i1, !=, i2, !=, i3, !=, i1);
+		 */
+		assertIterator(4, 4, false, ri1, i1);
+		assertIterator(2, 2, true,  ri2, i2);
 
-		i2++;
+		ri2 = i2.next();
 		/*     1  2  3  4  e
 		 * i1:          *
 		 * i2:       *
-		 * i3:       *
-		 * /
-		assertIter(i1, !=, !=, 4, 4);
-		assertIter(i2, !=, !=, 3, 3);
-		assertIter(i3, !=, !=, 3, 3);
-		assertCompareIters(i1, !=, i2, ==, i3, !=, i1);
+		 */
+		assertIterator(4, 4, false, ri1, i1);
+		assertIterator(3, 3, true,  ri2, i2);
 
-		++i3;
-		/*     1  2  3  4  e
-		 * i1:          *
-		 * i2:       *
-		 * i3:          *
-		 * /
-		assertIter(i1, !=, !=, 4, 4);
-		assertIter(i2, !=, !=, 3, 3);
-		assertIter(i3, !=, !=, 4, 4);
-		assertCompareIters(i1, !=, i2, !=, i3, ==, i1);
-
-		i3++;
-		/*     1  2  3  4  e
-		 * i1:          *
-		 * i2:       *
-		 * i3:             *
-		 * /
-		assertIter(i1, !=, !=, 4, 4);
-		assertIter(i2, !=, !=, 3, 3);
-		assertBeginEnd(i3, !=, ==);
-		assertCompareIters(i1, !=, i2, !=, i3, !=, i1);
-
-		++i2;
+		ri2 = i2.next();
 		/*     1  2  3  4  e
 		 * i1:          *
 		 * i2:          *
-		 * i3:             *
-		 * /
-		assertIter(i1, !=, !=, 4, 4);
-		assertIter(i2, !=, !=, 4, 4);
-		assertBeginEnd(i3, !=, ==);
-		assertCompareIters(i1, ==, i2, !=, i3, !=, i1);
-
-		++i2;
-		/*     1  2  3  4  e
-		 * i1:          *
-		 * i2:             *
-		 * i3:             *
-		 * /
-		assertIter(i1, !=, !=, 4, 4);
-		assertBeginEnd(i2, !=, ==);
-		assertBeginEnd(i3, !=, ==);
-		assertCompareIters(i1, !=, i2, ==, i3, !=, i1);
-
-		++i1;
-		/*     1  2  3  4  e
-		 * i1:             *
-		 * i2:             *
-		 * i3:             *
-		 * /
-		assertBeginEnd(i1, !=, ==);
-		assertBeginEnd(i2, !=, ==);
-		assertBeginEnd(i3, !=, ==);
-		assertCompareIters(i1, ==, i2, ==, i3, ==, i1);
-#undef assertIter
-#undef assertCompareIters
+		 */
+		assertIterator(4, 4, false, ri1, i1);
+		assertIterator(4, 4, false, ri2, i2);
 	}
+	/*
 
 
 private:

@@ -2,7 +2,7 @@ package mtree.tests;
 
 import mtree.DistanceFunctions.NumberSequence;
 
-class Data implements NumberSequence {
+class Data implements NumberSequence, Comparable<Data> {
 	
 	private final int[] values;
 	private final int hashCode;
@@ -48,6 +48,31 @@ class Data implements NumberSequence {
 		} else {
 			return false;
 		}
+	}
+	
+	@Override
+	public int compareTo(Data that) {
+		int size = Math.min(this.size(), that.size());
+		for(int i = 0; i < size; i++) {
+			int v1 = this.values[i];
+			int v2 = that.values[i];
+			if(v1 > v2) {
+				return +1;
+			}
+			if(v1 < v2) {
+				return -1;
+			}
+		}
+		
+		if(this.size() > size) {
+			return +1;
+		}
+		
+		if(that.size() > size) {
+			return -1;
+		}
+		
+		return 0;
 	}
 	
 }

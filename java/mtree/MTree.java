@@ -10,6 +10,8 @@ import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.Set;
 
+import mtree.utils.Pair;
+
 
 /* *
  * @brief The main class that implements the M-Tree.
@@ -339,8 +341,15 @@ public class MTree<DATA> {
 			SplitFunction<DATA> splitFunction)
 	{
 		if(minNodeCapacity < 2  ||  maxNodeCapacity <= minNodeCapacity  ||
-		   distanceFunction == null  ||  splitFunction == null) {
+		   distanceFunction == null) {
 			throw new IllegalArgumentException();
+		}
+		
+		if(splitFunction == null) {
+			splitFunction = new ComposedSplitFunction<DATA>(
+					new PromotionFunctions.RandomPromotion<DATA>(),
+					new PartitionFunctions.BalancedPartition<DATA>()
+				);
 		}
 		
 		this.minNodeCapacity = minNodeCapacity;
@@ -448,16 +457,10 @@ public class MTree<DATA> {
 	 *        constraints.
 	 * @param query_data The query data object.
 	 * @return A @c query object.
-	 * /
-	query get_nearest(const Data& query_data) const {
-		return {
-			this,
-			query_data,
-			std::numeric_limits<double>::infinity(),
-			std::numeric_limits<unsigned int>::max()
-		};
+	 */
+	public Query getNearest(DATA queryData) {
+		return new Query(queryData, Double.POSITIVE_INFINITY, Integer.MAX_VALUE);
 	}
-	*/
 	
 	protected void _check() {
 		if(root != null) {
@@ -571,12 +574,12 @@ protected:
 				DistanceFunction<? super DATA> cachedDistanceFunction = DistanceFunctions.cached(MTree.this.distanceFunction);
 				
 				Set<DATA> secondPartition = new HashSet<DATA>();
-				DATA[] promoted = MTree.this.splitFunction.process(firstPartition, secondPartition, cachedDistanceFunction);
+				Pair<DATA> promoted = MTree.this.splitFunction.process(firstPartition, secondPartition, cachedDistanceFunction);
 				
 				Node newNode0 = null;
 				Node newNode1 = null;
 				for(int i = 0; i < 2; ++i) {
-					DATA promotedData   = promoted[i];
+					DATA promotedData   = promoted.get(i);
 					Set<DATA> partition = (i == 0) ? firstPartition : secondPartition;
 					
 					Node newNode = newSplitNodeReplacement(promotedData);
