@@ -11,7 +11,6 @@ public final class PromotionFunctions {
 	private PromotionFunctions() {}
 	
 	public static class RandomPromotion<DATA> implements PromotionFunction<DATA> {
-		
 		@Override
 		public Pair<DATA> process(Set<DATA> dataSet,
 				DistanceFunction<? super DATA> distanceFunction)
@@ -19,7 +18,6 @@ public final class PromotionFunctions {
 			List<DATA> promotedList = Utils.randomSample(dataSet, 2);
 			return new Pair<DATA>(promotedList.get(0), promotedList.get(1));
 		}
-
 	}
 	
 }

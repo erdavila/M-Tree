@@ -82,15 +82,7 @@ public class MTree<DATA> {
 	private static class NodeUnderCapacity extends Exception { }
 	
 
-	private static class DataNotFound extends Exception {
-		// A subclass of Throwable cannot be generic.  :-(
-		// So, we have data declared as Object instead of Data.
-		private Object data;
-		
-		private DataNotFound(Object data) {
-			this.data = data;
-		}
-	}
+	private static class DataNotFound extends Exception { }
 
 	/* *
 	 * An Iterable class which can be iterated to fetch the results of a
@@ -270,28 +262,7 @@ public class MTree<DATA> {
 			return new ResultsIterator();
 		}
 
-
-		/* *
-		 * @brief The iterator for accessing the results of nearest-neighbor
-		 *        queries.
-		 * /
-		class iterator {
-		public:
-			bool operator==(const iterator& ri) const {
-				if(this->isEnd  &&  ri.isEnd) {
-					return true;
-				}
-
-				if(this->isEnd  ||  ri.isEnd) {
-					return false;
-				}
-
-				return  this->_query == ri._query
-				    &&  this->yieldedCount == ri.yieldedCount;
-			}
-		};
-		*/
-
+		
 		private DATA data;
 		private double range;
 		private int limit;
@@ -468,15 +439,6 @@ public class MTree<DATA> {
 		}
 	}
 	
-	/*
-private:
-
-	typedef std::pair<Data, Data> PromotedPair;
-	typedef std::set<Data> Partition;
-
-protected:
-	SplitFunction split_function;
-	*/
 
 	private class IndexItem {
 		DATA data;
@@ -747,7 +709,7 @@ protected:
 		@Override
 		public void doRemoveData(DATA data, double distance) throws DataNotFound {
 			if(thisNode.children.remove(data) == null) {
-				throw new DataNotFound(data);
+				throw new DataNotFound();
 			}
 		}
 
@@ -895,7 +857,7 @@ protected:
 				}
 			}
 			
-			throw new DataNotFound(data);
+			throw new DataNotFound();
 		}
 
 		

@@ -51,13 +51,9 @@ class Fixture {
 				List<String> fields = new ArrayList<String>(Arrays.asList(line.split("\\s+")));
 				
 				char cmd = fields.remove(0).charAt(0);
-				
-				Data data = readData(fields, dimensions);
-				
-				Data queryData = readData(fields, dimensions);
-				
+				Data data = fixture.readData(fields);
+				Data queryData = fixture.readData(fields);
 				double radius = Double.parseDouble(fields.remove(0));
-			
 				int limit = Integer.parseInt(fields.remove(0));
 			
 				fixture.actions.add(new Action(cmd, data, queryData, radius, limit));
@@ -83,7 +79,7 @@ class Fixture {
 	}
 	
 
-	static Data readData(List<String> fields, int dimensions) {
+	private Data readData(List<String> fields) {
 		int[] values = new int[dimensions];
 		for(int d = 0; d < dimensions; d++) {
 			values[d] = Integer.parseInt(fields.remove(0));

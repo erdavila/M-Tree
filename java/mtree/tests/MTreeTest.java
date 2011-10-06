@@ -20,41 +20,8 @@ import mtree.PromotionFunction;
 import mtree.utils.Pair;
 import mtree.utils.Utils;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
-
-
-
-/*
-typedef vector<int> Data;
-typedef set<Data> DataSet;
-typedef mt::functions::cached_distance_function<Data, mt::functions::euclidean_distance> CachedDistanceFunction;
-typedef pair<Data, Data>(*PromotionFunction)(const DataSet&, CachedDistanceFunction&);
-
-PromotionFunction nonRandomPromotion =
-	[](const DataSet& dataSet, CachedDistanceFunction&) -> pair<Data, Data> {
-		vector<Data> dataObjects(dataSet.begin(), dataSet.end());
-		sort(dataObjects.begin(), dataObjects.end());
-		return {dataObjects.front(), dataObjects.back()};
-	};
-*/
-
-/*
-
-
-typedef mt::mtree<
-		Data,
-		mt::functions::euclidean_distance,
-		mt::functions::split_function<
-				PromotionFunction,
-				mt::functions::balanced_partition
-			>
-	>
-	MTree;
-
-*/
 
 class MTreeClass extends MTree<Data> {
 	
@@ -67,7 +34,8 @@ class MTreeClass extends MTree<Data> {
 	
 	
 	MTreeClass() {
-		super(2, DistanceFunctions.EUCLIDEAN, new ComposedSplitFunction<Data>(
+		super(2, DistanceFunctions.EUCLIDEAN, 
+			new ComposedSplitFunction<Data>(
 				nonRandomPromotion,
 				new PartitionFunctions.BalancedPartition<Data>()
 			)
@@ -94,14 +62,7 @@ class MTreeClass extends MTree<Data> {
 
 public class MTreeTest {
 
-	@Before
-	public void setUp() throws Exception {
-	}
-
-	@After
-	public void tearDown() throws Exception {
-	}
-
+	
 	@Test
 	public void testEmpty() {
 		_checkNearestByRange(new Data(1, 2, 3), 4);
@@ -204,7 +165,6 @@ public class MTreeTest {
 	@Test
 	public void testIterators() {
 		MTree<Integer> mt = new MTree<Integer>(
-				2,
 				new DistanceFunction<Integer>() {
 					@Override
 					public double calculate(Integer data1, Integer data2) {
@@ -292,17 +252,11 @@ public class MTreeTest {
 		assertIterator(4, 4, false, ri1, i1);
 		assertIterator(4, 4, false, ri2, i2);
 	}
-	/*
 
 
-private:
-	typedef vector<MTreeTest::query::result_item> ResultsVector;
-	*/
-
+	
 	private MTreeClass mtree = new MTreeClass();
-	
 	private Set<Data> allData = new HashSet<Data>();
-	
 
 	
 	private void _test(String fixtureName) {
@@ -362,7 +316,7 @@ private:
 			if(distance <= radius) {
 				assertTrue(strippedResults.contains(data));
 			} else {
-				assertTrue(!strippedResults.contains(data));
+				assertFalse(strippedResults.contains(data));
 			}
 		}
 	}
@@ -407,7 +361,7 @@ private:
 			if(distance < farthest) {
 				assertTrue(strippedResults.contains(data));
 			} else if(distance > farthest) {
-				assertTrue(!strippedResults.contains(data));
+				assertFalse(strippedResults.contains(data));
 			} else {
 				// distance == farthest
 			}
