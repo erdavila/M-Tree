@@ -9,8 +9,8 @@ import java.nio.charset.Charset;
 
 public class WordDistance {
 	
-	//private static final String DICT_FILE = "pt-br.dic";
-	private static final String DICT_FILE = "en.dic";
+	//static final String DICT_FILE = "pt-br.dic";
+	static final String DICT_FILE = "en.dic";
 	
 	static int wordDistance(String word1, String word2) {
 		word1 = word1.toLowerCase();

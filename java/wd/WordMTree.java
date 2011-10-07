@@ -5,6 +5,10 @@ import mtree.MTree;
 class WordMTree extends MTree<String> {
 	
 	public WordMTree() {
-		super(MTree.DEFAULT_MIN_NODE_CAPACITY, new WordDistanceFunction(), null);
+		this(MTree.DEFAULT_MIN_NODE_CAPACITY);
+	}
+	
+	public WordMTree(int minNodeCapacity) {
+		super(minNodeCapacity, new WordDistanceFunction(), null);
 	}
 }
