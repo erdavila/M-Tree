@@ -7,6 +7,8 @@
 #include <set>
 #include <utility>
 #include <vector>
+#include <cmath>
+#include <map>
 
 
 namespace mt {
@@ -222,12 +224,12 @@ public:
 		{}
 
 	double operator()(const Data& data1, const Data& data2) {
-		typename CacheType::iterator i = cache.find(make_pair(data1, data2));
+		typename CacheType::iterator i = cache.find(std::make_pair(data1, data2));
 		if(i != cache.end()) {
 			return i->second;
 		}
 
-		i = cache.find(make_pair(data2, data1));
+		i = cache.find(std::make_pair(data2, data1));
 		if(i != cache.end()) {
 			return i->second;
 		}
@@ -236,8 +238,8 @@ public:
 		double distance = distance_function(data1, data2);
 
 		// Store in cache
-		cache.insert(make_pair(make_pair(data1, data2), distance));
-		cache.insert(make_pair(make_pair(data2, data1), distance));
+		cache.insert(std::make_pair(std::make_pair(data1, data2), distance));
+		cache.insert(std::make_pair(std::make_pair(data2, data1), distance));
 
 		return distance;
 	}
