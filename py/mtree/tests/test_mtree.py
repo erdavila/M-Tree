@@ -1,11 +1,13 @@
 import unittest
 import os.path
 import sys
+from importlib import import_module
 
-import mtree.tests.fixtures as fixtures
-import mtree.tests.fixtures.generator as generator
-from mtree import MTree
-import mtree.functions as f
+from . import fixtures
+from .fixtures import generator
+from .. import MTree
+from .. import functions as f
+
 
 
 
@@ -140,8 +142,8 @@ class Test(unittest.TestCase):
 	
 	
 	def _test(self, fixture_name):
-		fixtures = __import__('fixtures.' + fixture_name)
-		fixture = getattr(fixtures, fixture_name)
+		test_package = ".".join(__name__.split(".")[:-1])
+		fixture = import_module(f".fixtures.{fixture_name}", package=test_package)
 		self._test_fixture(fixture)
 	
 

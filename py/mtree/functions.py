@@ -1,6 +1,6 @@
 import math
 import random
-from heap_queue import HeapQueue
+from .heap_queue import HeapQueue
 
 
 

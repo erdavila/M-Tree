@@ -1,6 +1,6 @@
 from collections import namedtuple
-import functions
-from heap_queue import HeapQueue
+from . import functions
+from .heap_queue import HeapQueue
 
 
 
