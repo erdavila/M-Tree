@@ -61,31 +61,31 @@ def main():
 	
 	loaded_words = 0
 	t = Timer()
-	print 'Indexing...', ; sys.stdout.flush()
+	print('Indexing...', end=' ') ; sys.stdout.flush()
 	with open(DICT_FILE) as f:
 		for line in f:
 			if line[0] != '%':
-				word = unicode(line.strip(), 'utf-8')
+				word = str(line.strip(), 'utf-8')
 				#print "Adding %r (%s)" % (word, word)
 				mtree.add(word)
 				loaded_words += 1
 				if loaded_words >= words_limit:
 					break
 				if loaded_words % 100 == 0:
-					print '\r%d words indexed' % loaded_words, ; sys.stdout.flush()
-	print '\r%d words indexed' % loaded_words
+					print('\r%d words indexed' % loaded_words, end=' ') ; sys.stdout.flush()
+	print('\r%d words indexed' % loaded_words)
 	times = t.getTimes()
-	print 'TIMES: %0.2fuser %0.2ftotal' % times
-	print 
+	print('TIMES: %0.2fuser %0.2ftotal' % times)
+	print() 
 	
 	while True:
-		word = unicode(raw_input("Type a word: "), 'utf-8')
+		word = str(input("Type a word: "), 'utf-8')
 		t = Timer()
 		for near in mtree.get_nearest(word, limit=10):
-			print '\t%d %s' % (near.distance, near.data)
+			print('\t%d %s' % (near.distance, near.data))
 		times = t.getTimes()
-		print 'TIMES: %0.2fuser %0.2ftotal' % times
-		print
+		print('TIMES: %0.2fuser %0.2ftotal' % times)
+		print()
 
 
 

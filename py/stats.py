@@ -29,33 +29,33 @@ timing = time.time
 
 
 def create_mtree(words, min_node_capacity):
-	print >>sys.stderr, "Creating M-Tree with min_node_capacity=%r" % min_node_capacity
+	print("Creating M-Tree with min_node_capacity=%r" % min_node_capacity, file=sys.stderr)
 	mtree = MTree(min_node_capacity=min_node_capacity, distance_function = word_distance.word_distance)
-	print >>sys.stderr, "Adding words...",
+	print("Adding words...", end=' ', file=sys.stderr)
 	b = timing()
 	for n, word in enumerate(words, 1):
 		mtree.add(word)
 		if n % 100 == 0:
-			print >>sys.stderr, "\r%r words added..." % n,
+			print("\r%r words added..." % n, end=' ', file=sys.stderr)
 	e = timing()
 	total_time = e - b
-	print >>sys.stderr
-	print "\t".join([
+	print(file=sys.stderr)
+	print("\t".join([
 			"CREATE-MTREE",
 			"min_node_capacity=%r" % min_node_capacity,
 			"total_time=%r" % total_time,
 			"avg_time=%r" % (total_time / n),
-	])
+	]))
 	
-	print >>sys.stderr, "M-Tree created"
+	print("M-Tree created", file=sys.stderr)
 	return mtree
 
 
 
 def test(mtree, test_words, min_node_capacity, limit):
-	print >>sys.stderr, "Testing min_node_capacity=%r, limit=%r" % (min_node_capacity, limit)
+	print("Testing min_node_capacity=%r, limit=%r" % (min_node_capacity, limit), file=sys.stderr)
 	for test_word in test_words:
-		print >>sys.stderr, "test_word=%r" % test_word
+		print("test_word=%r" % test_word, file=sys.stderr)
 		total_time = 0
 		for _ in range(REPETITIONS):
 			b = timing()
@@ -66,18 +66,18 @@ def test(mtree, test_words, min_node_capacity, limit):
 		
 		avg_time = total_time / REPETITIONS
 		
-		print "\t".join([
+		print("\t".join([
 				"TEST",
 				"min_node_capacity=%d" % min_node_capacity,
 				"test_word=%r" % test_word,
 				"limit=%d" % limit,
 				"avg_time=%r" % avg_time
-		])
+		]))
 
 
 
 def main():
-	print >>sys.stderr, 'Loading words...'
+	print('Loading words...', file=sys.stderr)
 	with open(word_distance.DICT_FILE) as f:
 		words = list(
 				itertools.islice(
@@ -85,10 +85,10 @@ def main():
 						WORD_LIMIT
 				)
 		)
-	print >>sys.stderr, '%d words loaded' % len(words)
+	print('%d words loaded' % len(words), file=sys.stderr)
 	
 	test_words = random.sample(words, NUM_TEST_WORDS)
-	print >>sys.stderr, 'Test words:', test_words
+	print('Test words:', test_words, file=sys.stderr)
 	
 	for min_node_capacity in (int(r) for r in rate(2, TOP_MIN_CAPACITY, RATE)):
 		mtree = create_mtree(words, min_node_capacity)

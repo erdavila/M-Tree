@@ -144,18 +144,18 @@ def generate_test_data(options):
 
 
 def print_test_data(fixture, options):
-	print 'from mtree.tests.fixtures.generator import ADD, REMOVE, QUERY'
-	print '"""'
-	print 'actions = %r' % options.actions
-	print 'dimensions = %r' % options.dimensions
-	print 'remove_chance = %r' % options.remove_chance
-	print '"""'
-	print
-	print 'DIMENSIONS = %d' % fixture.DIMENSIONS
-	print
-	print 'def PERFORM(callback):'
+	print('from mtree.tests.fixtures.generator import ADD, REMOVE, QUERY')
+	print('"""')
+	print('actions = %r' % options.actions)
+	print('dimensions = %r' % options.dimensions)
+	print('remove_chance = %r' % options.remove_chance)
+	print('"""')
+	print()
+	print('DIMENSIONS = %d' % fixture.DIMENSIONS)
+	print()
+	print('def PERFORM(callback):')
 	for n, action in enumerate(fixture.ACTIONS, 1):
-		print "\tcallback(%r)   # %d" % (action, n)
+		print("\tcallback(%r)   # %d" % (action, n))
 
 
 

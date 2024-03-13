@@ -35,7 +35,7 @@ class HeapQueue(object):
 			self._make_heap(smallest)
 	
 	def heapify(self):
-		for i in xrange(len(self._items)//2, -1, -1):
+		for i in range(len(self._items)//2, -1, -1):
 			self._make_heap(i)
 	
 	def head(self):
