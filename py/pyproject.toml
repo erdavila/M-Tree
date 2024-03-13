@@ -12,6 +12,9 @@ packages = [
 python = "^3.9"
 
 
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
